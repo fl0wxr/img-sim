@@ -1,0 +1,17 @@
+# .gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Irrelevant entities
+unit_test
+commit-msg.md
+exported_files/*
+!exported_files/.gitkeep
+
+# Potentially Large Files
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
