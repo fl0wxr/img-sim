@@ -59,7 +59,6 @@ class augmentor:
 
     return sampled_augmentation_img_pairs_nrm
 
-
 def bgr2gs(img_arr_nrm_bgr: NDArray) -> NDArray:
   '''
   Description:
