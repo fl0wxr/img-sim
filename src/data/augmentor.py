@@ -1,3 +1,4 @@
+import math
 from copy import deepcopy
 import numpy as np
 import cv2
@@ -11,11 +12,12 @@ class augmentor:
     A set of augmentation utilities applicable to a set of images.
   '''
 
-  def __init__(self, enable_crop: bool, enable_jitter: bool, enable_color_drop: bool) -> None:
+  def __init__(self, enable_crop: bool = True, enable_jitter: bool = True, enable_gaussian_blur: bool = True, enable_color_drop: bool = False) -> None:
 
     self.data_set_ist_nrm_bgr = None
     self.enable_crop = enable_crop
     self.enable_jitter = enable_jitter
+    self.enable_gaussian_blur = enable_gaussian_blur
     self.enable_color_drop = enable_color_drop
 
   def update_input_instance_set(self, data_set_ist_nrm_bgr: NDArray) -> None:
@@ -50,6 +52,8 @@ class augmentor:
           augmented_ist_nrm_bgr = apply_random_crop(img_arr=augmented_ist_nrm_bgr)
         if self.enable_jitter:
           augmented_ist_nrm_bgr = apply_random_jitter(img_arr_nrm_bgr=augmented_ist_nrm_bgr)
+        if self.enable_gaussian_blur:
+          augmented_ist_nrm_bgr = apply_gaussian_blur(img_arr_bgr=augmented_ist_nrm_bgr)
         if self.enable_color_drop:
           augmented_ist_nrm_bgr = apply_random_color_drop(img_arr_nrm_bgr=augmented_ist_nrm_bgr)
         augmented_ist_pair.append(augmented_ist_nrm_bgr)
@@ -216,6 +220,76 @@ def apply_random_jitter(img_arr_nrm_bgr: NDArray) -> NDArray:
   img_arr_nrm_bgr_out = apply_hue_distortion(img_arr_nrm_bgr=img_arr_nrm_bgr_out, delta=hue_delta)
 
   return img_arr_nrm_bgr_out
+
+def apply_gaussian_blur(img_arr_bgr: NDArray) -> NDArray:
+  '''
+  Description:
+    Blurs an image using the 2D Gaussian kernel. The kernel's size is an odd number.
+      - For debugging, the 3x3 kernel with sigma 0.83 is printed below:
+array([[0.06047636, 0.1249667 , 0.06047636],
+       [0.1249667 , 0.25822777, 0.1249667 ],
+       [0.06047636, 0.1249667 , 0.06047636]])
+
+  Parameters:
+    `img_arr_bgr`. Shape (H, W, C). Pixels adhere to the BGR color model.
+
+  Returns:
+    `img_arr_bgr_out`. Shape (H, W, C).
+  '''
+
+  ker_length = 5
+  sigma = 0.83
+
+  gaussian_ker = np.full(shape=(ker_length, ker_length), fill_value=np.nan)
+
+  mid = ker_length//2
+  for h in range(ker_length):
+    for w in range(ker_length):
+      gaussian_ker[h, w] = math.exp(- ((h-mid)**2 + (w-mid)**2) / (2 * sigma**2))
+  gaussian_ker /= np.sum(a=gaussian_ker, axis=(0, 1))
+
+  img_arr_bgr_out = conv2d_filter(arr2d_signal=img_arr_bgr, ker2d=gaussian_ker)
+
+  return img_arr_bgr_out
+
+def conv2d_filter(arr2d_signal: NDArray, ker2d: NDArray) -> NDArray:
+  '''
+  Description:
+    Convolution of a pair of 2D arrays. The convolution is applied in every channel separately. The input image's shape is preserved. Preserves the input signal's shape. Padding is set to 'same' and the stride is set to 1.
+
+  Parameters:
+    `arr2d_signal`. Shape (Hs, Ws, C). Raw 2D signal
+    `ker2d`. Shape (Hk, Wk). The filter's kernel in 2D.
+
+  Returns:
+    `arr2d_signal_out`. Shape (Hs, Ws, C). Filtered signal.
+  '''
+
+  Hi, Wi, C = arr2d_signal.shape
+  Hk, Wk = ker2d.shape
+  PH = Hk // 2
+  PW = Wk // 2
+  Hip = Hi + 2*PH
+  Wip = Wi + 2*PW
+
+  assert (Hk % 2 == 1) and (Wk % 2 == 1), 'E: Kernel size must be an odd number.'
+
+  # Pad raw signal
+  arr2d_signal_padded = np.full(shape=(Hip, Wip, C), fill_value=0, dtype=float)
+  arr2d_signal_padded[PH:Hip-PH, PW:Wip-PW, :] = arr2d_signal
+  arr2d_signal_out = np.full(shape=(Hi, Wi, C), fill_value=np.nan, dtype=float)
+
+  for c in range(C):
+    for hip in range(PH, Hip-PH):
+      for wip in range(PW, Wip-PW):
+        # Computation of blurred pixel intensity based on overlapping region
+        intensity = 0
+        for hk in range(-PH, PH+1):
+          for wk in range(-PW, PW+1):
+            intensity += arr2d_signal_padded[hip+hk, wip+wk, c] * ker2d[hk+PH, wk+PW]
+        arr2d_signal_out[hip-PH, wip-PW, c] = intensity
+
+  return arr2d_signal_out
 
 def apply_random_color_drop(img_arr_nrm_bgr: NDArray) -> NDArray:
   '''

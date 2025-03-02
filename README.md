@@ -2,7 +2,7 @@
 
 ## Objective
 
-To replicate and extend a deep learning model using a contrastive learning approach for image similarity regression. The underlying model learns meaningful visual representations through self-supervised learning techniques, enabling accurate similarity measurements between image pairs.
+To replicate and extend a deep learning model using a contrastive learning framework for the task of image similarity. The underlying model learns meaningful visual representations through self-supervised learning techniques, enabling accurate similarity measurements between image pairs.
 
 ## Acknoledgement
 
