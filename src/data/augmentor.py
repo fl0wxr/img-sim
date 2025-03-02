@@ -2,6 +2,7 @@ import math
 from copy import deepcopy
 import numpy as np
 import cv2
+from scipy.signal import convolve2d
 
 from numpy.typing import NDArray
 
@@ -265,26 +266,18 @@ def conv2d_filter(arr2d_signal: NDArray, ker2d: NDArray) -> NDArray:
     `arr2d_signal_out`. Shape (Hs, Ws, C). Filtered signal.
   '''
 
-  Hi, Wi, C = arr2d_signal.shape
+  C = arr2d_signal.shape[-1]
   Hk, Wk = ker2d.shape
-  PH = Hk // 2
-  PW = Wk // 2
-  Hip = Hi + 2*PH
-  Wip = Wi + 2*PW
 
   assert (Hk % 2 == 1) and (Wk % 2 == 1), 'E: Kernel size must be an odd number.'
 
-  # Pad raw signal
-  arr2d_signal_padded = np.full(shape=(Hip, Wip, C), fill_value=0, dtype=float)
-  arr2d_signal_padded[PH:Hip-PH, PW:Wip-PW, :] = arr2d_signal
-  arr2d_signal_out = np.full(shape=(Hi, Wi, C), fill_value=np.nan, dtype=float)
-
-  for c in range(C):
-    for hip in range(PH, Hip-PH):
-      for wip in range(PW, Wip-PW):
-        # Computation of blurred pixel intensity based on overlapping region
-        intensity = np.sum(a=arr2d_signal_padded[hip-PH:hip+PH+1, wip-PW:wip+PW+1, c]*ker2d, axis=(0, 1))
-        arr2d_signal_out[hip-PH, wip-PW, c] = intensity
+  arr2d_signal_out = np.stack\
+  (
+    [
+      convolve2d(arr2d_signal[:, :, c], ker2d, mode='same', boundary='fill', fillvalue=0)
+        for c in range(C)
+    ], axis=-1
+  )
 
   return arr2d_signal_out
 
