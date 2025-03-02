@@ -283,10 +283,7 @@ def conv2d_filter(arr2d_signal: NDArray, ker2d: NDArray) -> NDArray:
     for hip in range(PH, Hip-PH):
       for wip in range(PW, Wip-PW):
         # Computation of blurred pixel intensity based on overlapping region
-        intensity = 0
-        for hk in range(-PH, PH+1):
-          for wk in range(-PW, PW+1):
-            intensity += arr2d_signal_padded[hip+hk, wip+wk, c] * ker2d[hk+PH, wk+PW]
+        intensity = np.sum(a=arr2d_signal_padded[hip-PH:hip+PH+1, wip-PW:wip+PW+1, c]*ker2d, axis=(0, 1))
         arr2d_signal_out[hip-PH, wip-PW, c] = intensity
 
   return arr2d_signal_out
