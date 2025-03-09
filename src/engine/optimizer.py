@@ -1,6 +1,5 @@
 from numpy.typing import NDArray
 import numpy as np
-import math
 
 
 def contrastive_loss(projected_pairs: tuple[NDArray], temperature: float) -> float:
@@ -19,24 +18,20 @@ def contrastive_loss(projected_pairs: tuple[NDArray], temperature: float) -> flo
   M, _, Np = projected_pairs.shape
   projections = np.reshape(projected_pairs, shape=(2*M, Np)) # projections[2*p], projections[2*p+1] -> projected_pairs[p]
   sim_mat = similarity(mat=projections) # Shape (2*M, 2*M)
-  exp_sim_mat = np.exp(sim_mat / temperature)
-  loss_value = 0
-  for p in range(M):
-    proj0_idx = 2*p
-    proj1_idx = 2*p+1
+  exp_sim_mat = np.exp(sim_mat / temperature) # Shape (2*M, 2*M)
 
-    pos_exp_sim = exp_sim_mat[proj0_idx, proj1_idx]
-    sum_den0 = np.sum(a=exp_sim_mat[proj0_idx, :]) - exp_sim_mat[proj0_idx, proj0_idx]
-    sum_den1 = np.sum(a=exp_sim_mat[:, proj1_idx]) - exp_sim_mat[proj1_idx, proj1_idx]
+  # Removal of the self similarity from ell's denominator; the numerator does not use self similarity either hence no conflicts emerge from this
+  np.fill_diagonal(a=exp_sim_mat, val=0)
 
-    ell0 = -math.log(pos_exp_sim / (sum_den0 + 1e-10))
-    ell1 = -math.log(pos_exp_sim / (sum_den1 + 1e-10))
+  first_idx_of_flattened_pairs = np.arange(2 * M)
+  second_idx_of_flattened_pairs = np.array([i+1 if i % 2 == 0 else i-1 for i in range(2 * M)])
+  numerators = exp_sim_mat[first_idx_of_flattened_pairs, second_idx_of_flattened_pairs]
+  denominators = np.sum(a=exp_sim_mat, axis=1)
+  losses = -np.log(numerators / (denominators + 1e-10))
 
-    loss_value += ell0+ell1
+  loss = np.mean(a=losses, axis=0)
 
-  loss_value /= 2*M
-
-  return loss_value
+  return loss
 
 def similarity(mat: NDArray) -> NDArray:
   '''
