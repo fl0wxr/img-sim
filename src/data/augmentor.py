@@ -241,6 +241,9 @@ array([[0.06047636, 0.1249667 , 0.06047636],
   ker_length = 5
   sigma = 0.83
 
+  assert ker_length % 2 == 1, 'E: Kernel size must be an odd number.'
+  C = img_arr_bgr.shape[-1]
+
   gaussian_ker = np.full(shape=(ker_length, ker_length), fill_value=np.nan)
 
   mid = ker_length//2
@@ -249,37 +252,15 @@ array([[0.06047636, 0.1249667 , 0.06047636],
       gaussian_ker[h, w] = math.exp(- ((h-mid)**2 + (w-mid)**2) / (2 * sigma**2))
   gaussian_ker /= np.sum(a=gaussian_ker, axis=(0, 1))
 
-  img_arr_bgr_out = conv2d_filter(arr2d_signal=img_arr_bgr, ker2d=gaussian_ker)
-
-  return img_arr_bgr_out
-
-def conv2d_filter(arr2d_signal: NDArray, ker2d: NDArray) -> NDArray:
-  '''
-  Description:
-    Convolution of a pair of 2D arrays. The convolution is applied in every channel separately. The input image's shape is preserved. Preserves the input signal's shape. Padding is set to 'same' and the stride is set to 1.
-
-  Parameters:
-    `arr2d_signal`. Shape (Hs, Ws, C). Raw 2D signal
-    `ker2d`. Shape (Hk, Wk). The filter's kernel in 2D.
-
-  Returns:
-    `arr2d_signal_out`. Shape (Hs, Ws, C). Filtered signal.
-  '''
-
-  C = arr2d_signal.shape[-1]
-  Hk, Wk = ker2d.shape
-
-  assert (Hk % 2 == 1) and (Wk % 2 == 1), 'E: Kernel size must be an odd number.'
-
-  arr2d_signal_out = np.stack\
+  img_arr_bgr_out = np.stack\
   (
     [
-      convolve2d(arr2d_signal[:, :, c], ker2d, mode='same', boundary='fill', fillvalue=0)
+      convolve2d(in1=img_arr_bgr[:, :, c], in2=gaussian_ker, mode='same', boundary='fill', fillvalue=0)
         for c in range(C)
     ], axis=-1
   )
 
-  return arr2d_signal_out
+  return img_arr_bgr_out
 
 def apply_random_color_drop(img_arr_nrm_bgr: NDArray) -> NDArray:
   '''
