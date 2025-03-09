@@ -9,7 +9,7 @@ def contrastive_loss(projected_pairs: tuple[NDArray], temperature: float) -> flo
     Computation of the NT-Xent loss function for a set of input projected pairs.
 
   Parameters:
-    `projected_pairs`. Shape (M, 2, Np). Where M is the number of pairs and Np is the dimensionality of the projection space. The second axis is the pair axis, where the position with index 0 holds one projected instance and index 1 holds the other projected instance. All such pairs are positive.
+    `projected_pairs`. Shape (M, 2, Np). Where M is the number of pairs and Np is the dimensionality of the projection space. The second axis is the positive pair axis, where the position with index 0 holds one projected instance and index 1 holds the other projected instance. All such pairs are positive.
     `temperature`. Temperature parameter.
 
   Returns:
@@ -26,8 +26,8 @@ def contrastive_loss(projected_pairs: tuple[NDArray], temperature: float) -> flo
     proj1_idx = 2*p+1
 
     pos_exp_sim = exp_sim_mat[proj0_idx, proj1_idx]
-    sum_den0 = np.sum(a=exp_sim_mat[proj0_idx, :]) - exp_sim_mat[proj0_idx, proj1_idx]
-    sum_den1 = np.sum(a=exp_sim_mat[:, proj1_idx]) - exp_sim_mat[proj0_idx, proj1_idx]
+    sum_den0 = np.sum(a=exp_sim_mat[proj0_idx, :]) - exp_sim_mat[proj0_idx, proj0_idx]
+    sum_den1 = np.sum(a=exp_sim_mat[:, proj1_idx]) - exp_sim_mat[proj1_idx, proj1_idx]
 
     ell0 = -math.log(pos_exp_sim / (sum_den0 + 1e-10))
     ell1 = -math.log(pos_exp_sim / (sum_den1 + 1e-10))
@@ -50,7 +50,7 @@ def similarity(mat: NDArray) -> NDArray:
     `sim_mat`. Shape (m, m). Similarity matrix.
   '''
 
-  norm2 = np.linalg.norm(x=mat, ord=2, axis=1, keepdims=True) # Shape (m,)
+  norm2 = np.linalg.norm(x=mat, ord=2, axis=1, keepdims=True) # Shape (m, 1)
   mat_normalized = mat / (norm2 + 1e-10)
   sim_mat = np.matmul(mat_normalized, mat_normalized.T)
 
