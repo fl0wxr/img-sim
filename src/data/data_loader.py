@@ -6,7 +6,7 @@ import glob
 from numpy.typing import NDArray
 
 
-def load_cifar(data_dp: str = '../../data/raw/cifar/cifar-10-batches-py') -> tuple[NDArray, NDArray] | NDArray:
+def load_cifar(data_dp: str = '../../data/raw/cifar/cifar-10-batches-py', return_labels: bool = False) -> tuple[NDArray, NDArray] | NDArray:
   '''
   Description:
     Loads the Cifar-10 dataset.
@@ -18,6 +18,7 @@ def load_cifar(data_dp: str = '../../data/raw/cifar/cifar-10-batches-py') -> tup
 
   Returns:
     `data_set_ist_out`. Shape (60000, 32, 32, 3). Dtype uint8. The order of the channel axis is defined by the BGR color system.
+    `data_set_tgt_out`. Shape (60000,). Dtype uint8.
   '''
 
   data_subset_fp_unfiltered = glob.glob(os.path.join(data_dp, '*'))
@@ -27,25 +28,36 @@ def load_cifar(data_dp: str = '../../data/raw/cifar/cifar-10-batches-py') -> tup
       data_subset_fps.append(potential_data_subset_fp)
 
   data_set_ist = []
+  data_set_tgt = []
   for data_subset_fp in data_subset_fps:
 
     with open(file=data_subset_fp, mode='rb') as f:
       data_subset = pickle.load(f, encoding='bytes')
 
     data_subset_ist = data_subset[b'data'] # dtype np.uint8
+    data_subset_tgt = data_subset[b'labels']
     data_set_ist.append(data_subset_ist)
+    data_set_tgt.append(data_subset_tgt)
 
   data_set_ist = np.concatenate(data_set_ist, axis=0)
+  data_set_tgt = np.concatenate(data_set_tgt, axis=0)
 
   m = data_set_ist.shape[0]
+  assert m == data_set_tgt.shape[0], 'E: There is a problem with the number of examples.'
 
   data_idcs = np.arange(m)
   np.random.shuffle(data_idcs)
 
   data_set_ist_out = []
+  data_set_tgt_out = []
   for i in range(m):
     data_set_ist_out.append(data_set_ist[data_idcs[i]])
+    data_set_tgt_out.append(data_set_tgt[data_idcs[i]])
 
-  data_set_ist_out = np.reshape(data_set_ist_out, shape=(-1, 3, 32, 32)).transpose(0, 2, 3, 1)
+  data_set_ist_out = np.transpose(a=np.reshape(data_set_ist_out, shape=(-1, 3, 32, 32)), axes=(0, 2, 3, 1))
+  data_set_tgt_out = np.array(data_set_tgt_out, dtype=np.uint8)
 
-  return data_set_ist_out
+  if return_labels:
+    return data_set_ist_out, data_set_tgt_out
+  else:
+    return data_set_ist_out

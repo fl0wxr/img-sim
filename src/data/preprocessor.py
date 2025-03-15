@@ -1,8 +1,52 @@
 import numpy as np
 import cv2
+import torch
 
 from numpy.typing import NDArray
 
+
+def preprocess_cifar(data_set_ist: NDArray, data_set_tgt: NDArray | None = None, device: str = 'cpu') -> tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+  '''
+  Description:
+    Preprocesses the CIFAR dataset.
+
+  Parameters:
+    `data_set_ist`. Shape (M, H, W, C). Dtype int.
+    `data_set_tgt`. Optional. Shape (M,). Dtype int.
+    `device`. Processing unit that will be utilized for the computation graph.
+
+  Returns:
+    If data_set_tgt is None
+      `(train_set_ist, test_set_ist)`.
+        - `train_set_ist`. Shape (M, C, H, W). Dtype float32.
+        - `test_set_ist`. Shape (M, C, H, W). Dtype float32.
+    Else
+      `(train_set_ist, test_set_ist, train_set_tgt, test_set_tgt)`.
+        - `train_set_ist`. Shape (M, C, H, W). Dtype float32.
+        - `test_set_ist`. Shape (M, C, H, W). Dtype float32.
+        - `train_set_tgt`. Shape (M,).
+        - `test_set_tgt`. Shape (M,).
+  '''
+
+  data_set_ist_prsd = preprocess_images(data_set_ist=data_set_ist)
+
+  if data_set_tgt is None:
+
+    train_set_ist, test_set_ist = split_data_set(data_set_ist=data_set_ist_prsd, data_set_tgt=None, train_fraction=0.6)
+    train_set_ist = torch.permute(input=torch.tensor(train_set_ist, dtype=torch.float32, device=device), dims=(0, 3, 1, 2))
+    test_set_ist = torch.permute(input=torch.tensor(test_set_ist, dtype=torch.float32, device=device, requires_grad=False), dims=(0, 3, 1, 2))
+
+    return train_set_ist, test_set_ist
+
+  else:
+
+    train_set_ist, test_set_ist, train_set_tgt, test_set_tgt = split_data_set(data_set_ist=data_set_ist_prsd, data_set_tgt=data_set_tgt, train_fraction=0.6)
+    train_set_ist = torch.permute(input=torch.tensor(train_set_ist, dtype=torch.float32, device=device), dims=(0, 3, 1, 2))
+    test_set_ist = torch.permute(input=torch.tensor(test_set_ist, dtype=torch.float32, device=device, requires_grad=False), dims=(0, 3, 1, 2))
+    train_set_tgt = torch.tensor(train_set_tgt, device=device)
+    test_set_tgt = torch.tensor(test_set_tgt, device=device, requires_grad=False)
+
+    return train_set_ist, test_set_ist, train_set_tgt, test_set_tgt
 
 def preprocess_images(data_set_ist: NDArray) -> NDArray:
   '''
@@ -26,25 +70,38 @@ def preprocess_images(data_set_ist: NDArray) -> NDArray:
 
   return data_set_ist_out
 
-def split_data_set(data_set_ist, train_fraction=0.6) -> tuple[NDArray, NDArray]:
+def split_data_set(data_set_ist: NDArray, data_set_tgt: NDArray | None = None, train_fraction: float = 0.6) -> tuple[NDArray, NDArray] | tuple[NDArray, NDArray, NDArray, NDArray]:
   '''
   Description:
     Splits the dataset into a train and a test set based on a fractional number.
 
   Parameters:
     `data_set_ist`. Shape (M, H, W, ...).
+    `data_set_tgt`. Optional (M,).
 
   Returns:
-    `(train_set_ist, test_set_ist)`.
-      `train_set_ist`. Shape (M, H, W, ...).
-      `test_set_ist`. Shape (M, H, W, ...).
+    If data_set_tgt is None
+      `(train_set_ist, test_set_ist)`.
+        - `train_set_ist`. Shape (M, H, W, ...).
+        - `test_set_ist`. Shape (M, H, W, ...).
+    Else
+      `(train_set_ist, test_set_ist, train_set_tgt, test_set_tgt)`.
+        - `train_set_ist`. Shape (M, H, W, ...).
+        - `test_set_ist`. Shape (M, H, W, ...).
+        - `train_set_tgt`. Shape (M,).
+        - `test_set_tgt`. Shape (M,).
   '''
 
   n_train_examples = int(train_fraction * data_set_ist.shape[0])
   train_set_ist = data_set_ist[:n_train_examples]
   test_set_ist = data_set_ist[n_train_examples:]
 
-  return train_set_ist, test_set_ist
+  if data_set_tgt is None:
+    return train_set_ist, test_set_ist
+  else:
+    train_set_tgt = data_set_tgt[:n_train_examples]
+    test_set_tgt = data_set_tgt[n_train_examples:]
+    return train_set_ist, test_set_ist, train_set_tgt, test_set_tgt
 
 def normalize(data_set_ist: NDArray) -> NDArray:
   '''
