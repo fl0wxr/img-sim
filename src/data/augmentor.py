@@ -7,7 +7,7 @@ from scipy.signal import convolve2d
 from numpy.typing import NDArray
 
 
-class augmentor:
+class ImageAugmentor:
   '''
   Description:
     A set of augmentation utilities applicable to a set of images.
@@ -24,7 +24,7 @@ class augmentor:
   def update_input_instance_set(self, data_set_ist_nrm_bgr: NDArray) -> None:
     '''
     Description:
-      Used to update the input dataset.
+      Sets the input dataset.
 
     Parameters:
       `data_set_ist_nrm_bgr`. Shape (M, H, W, 3). A sequence of image arrays. Pixels adhere to the BGR color model.

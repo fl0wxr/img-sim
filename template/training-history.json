@@ -1,0 +1,23 @@
+{
+  "torch_version": null,
+  "datetime_started": null,
+  "datetime_ended": null,
+  "optimal_model_epoch": null,
+  "total_time": 0,
+  "metrics_measurements":
+  {
+    "train":
+    {
+      "loss": []
+    },
+    "val":
+    {
+      "loss": []
+    },
+    "final_model_test":
+    {
+      "loss": null
+    }
+  },
+  "reproducibility_help": null
+}

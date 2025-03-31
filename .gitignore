@@ -1,17 +1,19 @@
 # .gitignore
 
-# Python
 __pycache__/
 *.py[cod]
-
-# Irrelevant entities
-unit_test
-commit-msg.md
-exported_files/*
-!exported_files/.gitkeep
+*.swp
+*.drawio
+**.pt
 
 # Potentially Large Files
 data/raw/*
-!data/raw/.gitkeep
 data/processed/*
-!data/processed/.gitkeep
+checkpoint/*
+
+# Other irrelevant entities
+unit_test
+commit-msg.md
+
+# Exclusion
+!**/.gitkeep
