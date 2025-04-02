@@ -8,18 +8,20 @@ import argparse
 from engine.trainer import train as train
 
 
-modes = ['train',]
-acceptable_debug_parameters = ['limit2SmallSubsetofData', 'undoCheckpoint', 'disableTraining']
+acceptable_modes = ['train', 'software-check']
+acceptable_debug_parameters = ['limit2SmallSubsetofData', 'disableExports']
+acceptable_device = ['cpu', 'gpu']
 
 parser = argparse.ArgumentParser(description='Entry point.')
-parser.add_argument('--mode', required=True, choices=modes, type=str, help='Mandatory. Set the mode to specify the purpose of this session. Acceptable values:\n\t"train". For training.\n\t"eval". For evaluation.')
+parser.add_argument('--device', required=True, choices=acceptable_device, type=str, help='Device for deep learning backend.')
+parser.add_argument('--mode', required=True, choices=acceptable_modes, type=str, help='Mandatory. Set the mode to specify the purpose of this session. Acceptable values:\n\t"train". For training.\n\t"eval". For evaluation.')
 parser.add_argument('--checkpoint', required=False, type=str, help='Optional. Directory name containing the files of some past training session. Refer to the documentation to understand the underlying directory structure and file format of stored checkpoints.')
 parser.add_argument('--config', required=False, type=str, help='Optional. File name of .json file that contains the configuration of some training algorithm and a model. The file name must include the file extension. The referred file should be located within "template".')
 parser.add_argument('--debug', required=False, choices=acceptable_debug_parameters, nargs='+', help='Optional. Debug mode. This parameter can be utilized by this software\'s developer.')
 
 args = parser.parse_args()
 
-if args.mode not in modes:
+if args.mode not in acceptable_modes:
   parser.error('Invalid mode argument.')
 if args.mode == 'train':
   if not(bool(args.checkpoint)^bool(args.config)):
@@ -43,4 +45,8 @@ if bool(args.debug):
 
 if __name__ == '__main__':
   if args.mode == 'train':
-    train(basis_chkp_id=args.checkpoint, basis_cfg_id=args.config)
+    train(basis_chkp_id=args.checkpoint, basis_cfg_id=args.config, device_id=args.device)
+  elif args.mode == 'software-check':
+    max_discrepancy = 10**(-8)
+    target_losses = {'train': None, 'val': None} # Expected output
+    train(basis_chkp_id=None, basis_cfg_id='config-test.json', device_id='cpu')

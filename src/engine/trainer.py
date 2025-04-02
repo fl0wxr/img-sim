@@ -1,9 +1,6 @@
 import os
-import sys
-import json
 from time import time
 from datetime import datetime, timezone
-from matplotlib import pyplot as plt
 import numpy as np
 import torch
 import data.augmentor
@@ -18,13 +15,16 @@ import model.head
 import model.tmodel
 import utils.storage
 import utils.logger
+import pandas as pd
+from tabulate import tabulate
 
 
-def train(basis_chkp_id: str = None, basis_cfg_id: str = None):
+def train(*, basis_chkp_id: str = None, basis_cfg_id: str = None, device_id: str = None):
   '''
   Parameters:
     `basis_chkp_id`. Checkpoint identifier to be parsed.
     `basis_cfg_id`. Template identifier to be parsed.
+    `device_id`. Device identifier to be selected for DL framework.
   '''
 
   assert bool(basis_chkp_id)^bool(basis_cfg_id), 'E: Exactly one of chkp_id and tplt_id must be specified.'
@@ -36,9 +36,15 @@ def train(basis_chkp_id: str = None, basis_cfg_id: str = None):
 
   ## Training Initialization
 
+  dataset_selector = {'cifar': data.dataset.Cifar}
   acceptable_iter_optim_algs = {'adam': torch.optim.Adam}
   session_init_datetime = datetime.now().astimezone(timezone.utc)
-  device = torch.device(device='cuda:0' if torch.cuda.is_available() else 'cpu')
+
+  if device_id == 'gpu':
+    device = torch.device(device='cuda:0' if torch.cuda.is_available() else 'cpu')
+  else:
+    device = torch.device(device='cpu')
+
   current_session_chkp_id = session_init_datetime.strftime('D%Y%m%d%H%M%SUTC0')
 
   # Parse checkpoint information or some-config.json and then initialize the current session's checkpoint
@@ -61,7 +67,7 @@ def train(basis_chkp_id: str = None, basis_cfg_id: str = None):
   epoch_offset = len(session_checkpoint_manager.training_history.content['metrics_measurements']['train']['loss'])
   metrics_ids = list(session_checkpoint_manager.training_history.content['metrics_measurements']['train'].keys())
 
-  if 'undoCheckpoint' in os.environ['DEBUG_CONFIG'].split(';'):
+  if 'disableExports' in os.environ['DEBUG_CONFIG'].split(';'):
     session_checkpoint_manager.rm_chkp()
   if 'limit2SmallSubsetofData' in os.environ['DEBUG_CONFIG'].split(';'):
     subset_size = 100
@@ -81,22 +87,66 @@ def train(basis_chkp_id: str = None, basis_cfg_id: str = None):
   optimizer = iter_optim_alg(params=trainable_model.parameters(), lr=lr)
 
   # Data parsing
-  dataset = data.dataset.Cifar(instance_prsd_shape=instance_prsd_shape, M_minibatch=M_minibatch, train_fraction=train_fraction, subset_size=subset_size, parse_labels=True, device=device)
+  dataset = dataset_selector[data_id](instance_prsd_shape=instance_prsd_shape, M_minibatch=M_minibatch, train_fraction=train_fraction, subset_size=subset_size, parse_labels=True, device=device)
 
+  init_measurements = dict()
   opt_measurements = dict()
+  worst_measurements = dict()
   for measurement_mode in {'train', 'val'}:
+    init_measurements[measurement_mode] = dict()
     opt_measurements[measurement_mode] = dict()
-    for metric_id in metrics_ids:
-      opt_measurements[measurement_mode][metric_id] = -10**10
+    worst_measurements[measurement_mode] = dict()
+    init_measurements[measurement_mode]['loss'] = None
+    opt_measurements[measurement_mode]['loss'] = float('inf')
+    worst_measurements[measurement_mode]['loss'] = -float('inf')
 
   # stdout: print shapes, sizes, notify training is about to start
-  print('\n[TRAINING SUMMARY]')
+  print('\n[TRAINING SUMMARY]\n')
+  print('Model: %s'%(model_id))
   print('Dataset: %s'%(data_id))
   print('Train data: %d'%(len(dataset.train_set)))
   print('Val data: %d'%(len(dataset.val_set)))
   print('Test data: %d'%(len(dataset.test_set)))
   print('Total data: %d'%(len(dataset)))
   print('Initial epoch: %d'%(epoch_offset))
+
+  print('\n[PRETRAINING EVALUATION]\n')
+
+  t_0 = time()
+  compounding_delta_t_stdout = 0
+
+  initial_val_measurements = dict()
+  for metric_id in metrics_ids:
+    initial_val_measurements[metric_id] = []
+
+  # Val performance measurement
+  while next(dataset.val_set):
+
+    # Get augmented pairs from current minibatch
+    val_set_ist_minibatch_pairs = dataset.val_set.x_current_grp_agm_pairs
+
+    # Forward pass
+    val_set_ist_minibatch_pairs_descriptor = trainable_model(val_set_ist_minibatch_pairs)
+    val_loss_minibatch = contrastive_loss(descriptor_pairs=val_set_ist_minibatch_pairs_descriptor, temperature=.1, device=device)
+
+    delta_t_iteration = (time()-t_0) / (dataset.val_set.minibatch_idx+1)
+
+    initial_val_measurements['loss'].append(val_loss_minibatch.item())
+
+    # stdout: Iteration state
+    compounding_delta_t_stdout += delta_t_iteration
+    if dataset.val_set.minibatch_idx == 0 or dataset.val_set.minibatch_idx == dataset.val_set.n_steps - 1 or compounding_delta_t_stdout > 0.1:
+      compounding_delta_t_stdout = 0
+      progress_bar_ist = utils.logger.get_progress_bar_ist(i=dataset.val_set.minibatch_idx, n=dataset.val_set.n_steps-1, delta_t=delta_t_iteration, loss=None, bar_length = 30, bar_background_char = ' ', bar_fill_char = '=')
+      utils.logger.dnmc_stdout_write(s=progress_bar_ist)
+
+  # Record all metrics for the same epoch
+  for metric_id in metrics_ids:
+    measurement = sum(initial_val_measurements[metric_id]) / len(initial_val_measurements[metric_id])
+    init_measurements['val'][metric_id] = measurement
+    opt_measurements['val'][metric_id] = measurement
+    worst_measurements['val'][metric_id] = measurement
+
   print('\n[COMMENCING THE TRAINING PROCESS]')
 
   t_0_training = time()
@@ -113,15 +163,13 @@ def train(basis_chkp_id: str = None, basis_cfg_id: str = None):
         metrics_measurement_lists[measurement_mode][metric_id] = []
 
     t_0_epoch = time()
-    t_0_datetime_str = datetime.now().astimezone(timezone.utc).strftime('D%Y%m%d%H%M%SUTC0')
+    t_0_epoch_datetime_str = datetime.now().astimezone(timezone.utc).strftime('D%Y%m%d%H%M%SUTC0')
+    t_1 = time()
+    compounding_delta_t_stdout = 0
 
-    print('\n[EPOCH %d/%d @ %s]'%(epoch, max_epochs-1, t_0_datetime_str))
-
-    print('Model training state:')
+    print('\n[EPOCH %d/%d @ %s]\n'%(epoch, max_epochs-1, t_0_epoch_datetime_str))
 
     while next(dataset.train_set):
-
-      t_0_iteration = time()
 
       # Get augmented pairs from current minibatch
       train_set_ist_minibatch_pairs = dataset.train_set.x_current_grp_agm_pairs
@@ -139,23 +187,26 @@ def train(basis_chkp_id: str = None, basis_cfg_id: str = None):
       # Update trainable model
       optimizer.step()
 
-      delta_t_iteration = time() - t_0_iteration
+      metrics_measurement_lists['est_train']['loss'].append(train_loss_minibatch.item())
+
+      delta_t_iteration = (time()-t_1) / (dataset.train_set.minibatch_idx+1)
 
       # stdout: Iteration state
-      progress_bar_ist = utils.logger.get_progress_bar_ist(i=dataset.train_set.minibatch_idx, n=dataset.train_set.n_steps-1, delta_t=delta_t_iteration, bar_length = 30, bar_background_char = ' ', bar_fill_char = '=')
-      utils.logger.dyn_stdout_write(s=progress_bar_ist)
+      compounding_delta_t_stdout += delta_t_iteration
+      if dataset.train_set.minibatch_idx == 0 or dataset.train_set.minibatch_idx == dataset.train_set.n_steps - 1 or compounding_delta_t_stdout > 0.1:
+        compounding_delta_t_stdout = 0
+        progress_bar_ist = utils.logger.get_progress_bar_ist(i=dataset.train_set.minibatch_idx, n=dataset.train_set.n_steps-1, delta_t=delta_t_iteration, loss=metrics_measurement_lists['est_train']['loss'][-1], bar_length = 30, bar_background_char = ' ', bar_fill_char = '=')
+        utils.logger.dnmc_stdout_write(s=progress_bar_ist)
 
-      for metric_id in metrics_ids:
-        metrics_measurement_lists['est_train'][metric_id].append(train_loss_minibatch.item())
-
+    print('Epoch optimization completed; proceeding to model evaluation stage.')
     print('Train set evaluation state:')
 
     t_0_performance_measurement_period = time()
+    t_2 = time()
+    compounding_delta_t_stdout = 0
 
     # Train performance measurement
     while next(dataset.train_set):
-
-      t_0_iteration = time()
 
       # Get augmented pairs from current minibatch
       train_set_ist_minibatch_pairs = dataset.train_set.x_current_grp_agm_pairs
@@ -164,17 +215,22 @@ def train(basis_chkp_id: str = None, basis_cfg_id: str = None):
       train_set_ist_minibatch_pairs_descriptor = trainable_model(train_set_ist_minibatch_pairs)
       train_loss_minibatch = contrastive_loss(descriptor_pairs=train_set_ist_minibatch_pairs_descriptor, temperature=.1, device=device)
 
-      delta_t_iteration = time() - t_0_iteration
-
-      # stdout: Iteration state
-      progress_bar_ist = utils.logger.get_progress_bar_ist(i=dataset.train_set.minibatch_idx, n=dataset.train_set.n_steps-1, delta_t=delta_t_iteration, bar_length = 30, bar_background_char = ' ', bar_fill_char = '=')
-      utils.logger.dyn_stdout_write(s=progress_bar_ist)
+      delta_t_iteration = (time()-t_2) / (dataset.train_set.minibatch_idx+1)
 
       # Performance metrics
-      for metric_id in metrics_ids:
-        metrics_measurement_lists['train'][metric_id].append(train_loss_minibatch.item())
+      metrics_measurement_lists['train']['loss'].append(train_loss_minibatch.item())
+
+      # stdout: Iteration state
+      compounding_delta_t_stdout += delta_t_iteration
+      if dataset.train_set.minibatch_idx == 0 or dataset.train_set.minibatch_idx == dataset.train_set.n_steps - 1 or compounding_delta_t_stdout > 0.1:
+        compounding_delta_t_stdout = 0
+        progress_bar_ist = utils.logger.get_progress_bar_ist(i=dataset.train_set.minibatch_idx, n=dataset.train_set.n_steps-1, delta_t=delta_t_iteration, loss=metrics_measurement_lists['train']['loss'][-1], bar_length = 30, bar_background_char = ' ', bar_fill_char = '=')
+        utils.logger.dnmc_stdout_write(s=progress_bar_ist)
 
     print('Validation set evaluation state:')
+
+    t_3 = time()
+    compounding_delta_t_stdout = 0
 
     # Val performance measurement
     while next(dataset.val_set):
@@ -186,15 +242,17 @@ def train(basis_chkp_id: str = None, basis_cfg_id: str = None):
       val_set_ist_minibatch_pairs_descriptor = trainable_model(val_set_ist_minibatch_pairs)
       val_loss_minibatch = contrastive_loss(descriptor_pairs=val_set_ist_minibatch_pairs_descriptor, temperature=.1, device=device)
 
-      delta_t_iteration = time() - t_0_iteration
-
-      # stdout: Iteration state
-      progress_bar_ist = utils.logger.get_progress_bar_ist(i=dataset.val_set.minibatch_idx, n=dataset.val_set.n_steps-1, delta_t=delta_t_iteration, bar_length = 30, bar_background_char = ' ', bar_fill_char = '=')
-      utils.logger.dyn_stdout_write(s=progress_bar_ist)
+      delta_t_iteration = (time()-t_3) / (dataset.val_set.minibatch_idx+1)
 
       # Performance metrics
-      for metric_id in metrics_ids:
-        metrics_measurement_lists['val'][metric_id].append(val_loss_minibatch.item())
+      metrics_measurement_lists['val']['loss'].append(val_loss_minibatch.item())
+
+      # stdout: Iteration state
+      compounding_delta_t_stdout += delta_t_iteration
+      if dataset.val_set.minibatch_idx == 0 or dataset.val_set.minibatch_idx == dataset.val_set.n_steps - 1 or compounding_delta_t_stdout > 0.1:
+        compounding_delta_t_stdout = 0
+        progress_bar_ist = utils.logger.get_progress_bar_ist(i=dataset.val_set.minibatch_idx, n=dataset.val_set.n_steps-1, delta_t=delta_t_iteration, loss=metrics_measurement_lists['val']['loss'][-1], bar_length = 30, bar_background_char = ' ', bar_fill_char = '=')
+        utils.logger.dnmc_stdout_write(s=progress_bar_ist)
 
     delta_t_performance_measurement_period = time() - t_0_performance_measurement_period
     t_0_performance_measurement_period_h = utils.logger.get_delta_t_h(t=delta_t_performance_measurement_period)
@@ -225,45 +283,61 @@ def train(basis_chkp_id: str = None, basis_cfg_id: str = None):
     session_checkpoint_manager.training_history.write()
 
     # If the current loss is optimal
-    for measurement_mode in {'train', 'val'}:
-      if opt_measurements[measurement_mode]['loss'] < session_checkpoint_manager.training_history.content['metrics_measurements'][measurement_mode]['loss'][-1][-1]:
-        # Record all metrics for the same epoch
+    if session_checkpoint_manager.training_history.content['metrics_measurements']['val']['loss'][-1][-1] < opt_measurements['val']['loss']:
+
+      # Record all metrics for the same epoch
+      for measurement_mode in {'train', 'val'}:
         for metric_id in metrics_ids:
-          opt_measurements[measurement_mode][metric_id] = session_checkpoint_manager.training_history.content['metrics_measurements'][measurement_mode]['loss'][-1][-1]
-        # Record and write tparams only in case this is optimal with respect to the validation set
-        if measurement_mode == 'val':
-          session_checkpoint_manager.opt_tparams.content = trainable_model.state_dict()
-          session_checkpoint_manager.opt_tparams.write()
+          opt_measurements[measurement_mode][metric_id] = session_checkpoint_manager.training_history.content['metrics_measurements'][measurement_mode][metric_id][-1][-1]
+
+      # Record and write tparams
+      session_checkpoint_manager.opt_tparams.content = trainable_model.state_dict()
+      session_checkpoint_manager.opt_tparams.write()
+
+    # If the current loss is the worst
+    if session_checkpoint_manager.training_history.content['metrics_measurements']['val']['loss'][-1][-1] > worst_measurements['val']['loss']:
+
+      # Record all metrics for the same epoch
+      for measurement_mode in {'train', 'val'}:
+        for metric_id in metrics_ids:
+          worst_measurements[measurement_mode][metric_id] = session_checkpoint_manager.training_history.content['metrics_measurements'][measurement_mode][metric_id][-1][-1]
+
+    last_model_measurements = pd.DataFrame\
+    (
+      data=np.array\
+      (
+        [
+          [
+            session_checkpoint_manager.training_history.content['metrics_measurements']['train'][metric_id][-1][0],
+            session_checkpoint_manager.training_history.content['metrics_measurements']['train'][metric_id][-1][1],
+            session_checkpoint_manager.training_history.content['metrics_measurements']['train'][metric_id][-1][2],
+            session_checkpoint_manager.training_history.content['metrics_measurements']['train'][metric_id][-1][3],
+            session_checkpoint_manager.training_history.content['metrics_measurements']['val'][metric_id][-1][-1],
+            '%.2f %%' % ( 100 * (session_checkpoint_manager.training_history.content['metrics_measurements']['val'][metric_id][-1][-1] - opt_measurements['val'][metric_id]) / (opt_measurements['val'][metric_id] + 10**(-8)) ),
+            '%.2f %%' % ( 100 * (session_checkpoint_manager.training_history.content['metrics_measurements']['val'][metric_id][-1][-1] - worst_measurements['val'][metric_id]) / (worst_measurements['val'][metric_id] + 10**(-8)) ),
+            '%.2f %%' % ( 100 * (session_checkpoint_manager.training_history.content['metrics_measurements']['val'][metric_id][-1][-1] - init_measurements['val'][metric_id]) / (init_measurements['val'][metric_id] + 10**(-8)) )
+          ] for metric_id in metrics_ids
+        ]
+      ),
+      index=metrics_ids,
+      columns=['est_train_min', 'est_train_max', 'est_train_avg', 'train', 'val', 'val_v_opt', 'val_v_worst', 'val_v_init']
+    )
 
     # Write last model
     session_checkpoint_manager.tparams.content = trainable_model.state_dict()
     session_checkpoint_manager.tparams.write()
 
     # stdout: Epoch state
-    print('Epoch Report')
+    print('[EPOCH CONCLUSIVE REPORT]')
     print('Epoch time: %s'%(delta_t_epoch_h))
     print('Performance measurement time: %s'%(t_0_performance_measurement_period_h))
-
-
-
-    # Update session checkpoint
-    # |-- Update history file
-    # |   |-- Update datetime_ended
-    # |   |-- Update total_time
-    # |   |-- Update metrics_measurements -> train -> * -> (est_min, est_max, est_avg, avg)
-    # |   |-- Update metrics_measurements -> val -> * -> avg
-    # |
-    # |-- Update pt file
-    # |-- Update performance images
-    # |-- DONT Update config.json
-    # |-- Update log
-
-  # stdout: Training completion
-  # |-- display training time
-  # |-- display test set performance
+    print()
+    print(tabulate(last_model_measurements, headers='keys', tablefmt='psql'))
 
   delta_t = time() - t_0_training
 
   print('Training completed.')
-  print('\n[TRAINING CONCLUSIVE SUMMARY]')
-  print('Exported Checkpoint:\n%s'%(current_session_chkp_id))
+  print('\n[TRAINING CONCLUSIVE REPORT]\n')
+  print('Exported Checkpoint -> \n%s'%(current_session_chkp_id))
+  # first train loss, worst train loss, opt train loss, final train loss
+  # first val loss, worst val loss, opt val loss, final val loss

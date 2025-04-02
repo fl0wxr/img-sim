@@ -30,8 +30,9 @@ class JsonFile(File_):
       self.content = None
 
   def write(self):
-    with open(self.abs_fp, 'w') as f:
-      json.dump(self.content, f, indent=2)
+    if not('disableExports' in os.environ['DEBUG_CONFIG'].split(';')):
+      with open(self.abs_fp, 'w') as f:
+        json.dump(self.content, f, indent=2)
 
 class TpFile(File_):
 
@@ -47,7 +48,8 @@ class TpFile(File_):
       self.content = None
 
   def write(self):
-    torch.save(obj=self.content, f=self.abs_fp)
+    if not('disableExports' in os.environ['DEBUG_CONFIG'].split(';')):
+      torch.save(obj=self.content, f=self.abs_fp)
 
 class CheckpointStorageManager:
   '''
