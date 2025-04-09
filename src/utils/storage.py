@@ -119,16 +119,24 @@ class CheckpointStorageManager:
       `basis_id`. Path for basis/source checkpoint for training restart or the path of some configuration template if this is a clean start.
     '''
 
-    if basis_id.split('.')[-1] != 'json': # A session directory is specified
+    if basis_id.split('.')[-1] != 'json': # A session directory is specified.
 
-      basis_chkp_dp = os.path.join(self.ROOT_ABS_DP, basis_id)
+      basis_chkp_dp = os.path.join(self.ROOT_ABS_DP, 'checkpoint', basis_id)
+      assert os.path.exists(basis_chkp_dp), 'E: Invalid source checkpoint directory name.'
       for basis_chkp_fp in glob.glob(os.path.join(basis_chkp_dp, "*")):
         shutil.copy(basis_chkp_fp, self.chkp_root_abs_dp)
+
+      self.config.read()
+      self.tparams.read()
+      self.opt_tparams.read()
+      self.training_history.read()
 
     else: # A config file is specified.
 
       # Copy everything to new session directory
-      shutil.copy(os.path.join(self.ROOT_ABS_DP, 'template', basis_id), self.config.abs_fp)
+      basis_config_fp = os.path.join(self.ROOT_ABS_DP, 'template', basis_id)
+      assert os.path.exists(basis_config_fp), 'E: Invalid configuration filename.'
+      shutil.copy(basis_config_fp, self.config.abs_fp)
       shutil.copy(os.path.join(self.ROOT_ABS_DP, 'template', 'training-history.json'), self.training_history.abs_fp)
 
       self.config.read()

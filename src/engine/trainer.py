@@ -9,18 +9,22 @@ import data.utils
 import data.augmentor
 import engine.optimizer
 import engine.trainer
-import interpretation.visualization
+import interpretation.visualizer
 import model.backbone
 import model.head
 import model.tmodel
 import utils.storage
 import utils.logger
 import pandas as pd
+import copy
 from tabulate import tabulate
 
 
 def train(*, basis_chkp_id: str = None, basis_cfg_id: str = None, device_id: str = None):
   '''
+  Description:
+    Training API.
+
   Parameters:
     `basis_chkp_id`. Checkpoint identifier to be parsed.
     `basis_cfg_id`. Template identifier to be parsed.
@@ -61,7 +65,6 @@ def train(*, basis_chkp_id: str = None, basis_cfg_id: str = None, device_id: str
   lr = session_checkpoint_manager.config.content['training_cfg']['optimization']['lr']
   train_fraction = session_checkpoint_manager.config.content['training_cfg']['train_fraction']
   subset_size = session_checkpoint_manager.config.content['training_cfg']['subset_size']
-  tparams = session_checkpoint_manager.tparams.content
 
   # Prepare training history
   epoch_offset = len(session_checkpoint_manager.training_history.content['metrics_measurements']['train']['loss'])
@@ -80,7 +83,7 @@ def train(*, basis_chkp_id: str = None, basis_cfg_id: str = None, device_id: str
   np.random.seed(seed=rng_seed)
 
   # Assemble complete trainable architecture
-  trainable_model = model.tmodel.trainable_model_assembler(model_architecture_cfg=session_checkpoint_manager.config.content['model_architecture_cfg'], device=device, state_dict=tparams)
+  trainable_model = model.tmodel.trainable_model_assembler(model_architecture_cfg=session_checkpoint_manager.config.content['model_architecture_cfg'], device=device, state_dict=session_checkpoint_manager.tparams.content)
 
   # Training algorithm configuration
   contrastive_loss = engine.optimizer.contrastive_loss
@@ -96,9 +99,15 @@ def train(*, basis_chkp_id: str = None, basis_cfg_id: str = None, device_id: str
     init_measurements[measurement_mode] = dict()
     opt_measurements[measurement_mode] = dict()
     worst_measurements[measurement_mode] = dict()
-    init_measurements[measurement_mode]['loss'] = None
-    opt_measurements[measurement_mode]['loss'] = float('inf')
-    worst_measurements[measurement_mode]['loss'] = -float('inf')
+    for metric_id in metrics_ids:
+      if metric_id == 'loss':
+        init_measurements[measurement_mode][metric_id] = None
+        opt_measurements[measurement_mode][metric_id] = float('inf')
+        worst_measurements[measurement_mode][metric_id] = -float('inf')
+      else:
+        init_measurements[measurement_mode][metric_id] = None
+        opt_measurements[measurement_mode][metric_id] = None
+        worst_measurements[measurement_mode][metric_id] = None
 
   # stdout: print shapes, sizes, notify training is about to start
   print('\n[TRAINING SUMMARY]\n')
@@ -115,9 +124,7 @@ def train(*, basis_chkp_id: str = None, basis_cfg_id: str = None, device_id: str
   t_0 = time()
   compounding_delta_t_stdout = 0
 
-  initial_val_measurements = dict()
-  for metric_id in metrics_ids:
-    initial_val_measurements[metric_id] = []
+  initial_val_loss = []
 
   # Val performance measurement
   while next(dataset.val_set):
@@ -131,7 +138,7 @@ def train(*, basis_chkp_id: str = None, basis_cfg_id: str = None, device_id: str
 
     delta_t_iteration = (time()-t_0) / (dataset.val_set.minibatch_idx+1)
 
-    initial_val_measurements['loss'].append(val_loss_minibatch.item())
+    initial_val_loss.append(val_loss_minibatch.item())
 
     # stdout: Iteration state
     compounding_delta_t_stdout += delta_t_iteration
@@ -140,16 +147,24 @@ def train(*, basis_chkp_id: str = None, basis_cfg_id: str = None, device_id: str
       progress_bar_ist = utils.logger.get_progress_bar_ist(i=dataset.val_set.minibatch_idx, n=dataset.val_set.n_steps-1, delta_t=delta_t_iteration, loss=None, bar_length = 30, bar_background_char = ' ', bar_fill_char = '=')
       utils.logger.dnmc_stdout_write(s=progress_bar_ist)
 
-  # Record all metrics for the same epoch
-  for metric_id in metrics_ids:
-    measurement = sum(initial_val_measurements[metric_id]) / len(initial_val_measurements[metric_id])
-    init_measurements['val'][metric_id] = measurement
-    opt_measurements['val'][metric_id] = measurement
-    worst_measurements['val'][metric_id] = measurement
+  # Record loss
+  measurement = sum(initial_val_loss) / len(initial_val_loss)
+  init_measurements['val']['loss'] = measurement
+  opt_measurements['val']['loss'] = measurement
+  worst_measurements['val']['loss'] = measurement
+
+  if len(session_checkpoint_manager.training_history.content['metrics_measurements']['val']['loss']) != 0:
+
+    val_losses = copy.deepcopy(session_checkpoint_manager.training_history.content['metrics_measurements']['val']['loss'])
+
+    historical_min_val_loss = min([val_losses[epoch][0] for epoch in range(len(val_losses))])
+    opt_measurements['val']['loss'] = min([historical_min_val_loss, init_measurements['val']['loss']])
+
+    # If historical_min_val_loss is bigger than init_measurements['val']['loss'], then the reason the optimal model is not stored from this point is because *the model is almost certainly not worth saving*.
+
+    del val_losses
 
   print('\n[COMMENCING THE TRAINING PROCESS]')
-
-  t_0_training = time()
 
   ## The training process
 
@@ -168,6 +183,8 @@ def train(*, basis_chkp_id: str = None, basis_cfg_id: str = None, device_id: str
     compounding_delta_t_stdout = 0
 
     print('\n[EPOCH %d/%d @ %s]\n'%(epoch, max_epochs-1, t_0_epoch_datetime_str))
+
+    print('Iterative optimization state:')
 
     while next(dataset.train_set):
 
@@ -256,8 +273,6 @@ def train(*, basis_chkp_id: str = None, basis_cfg_id: str = None, device_id: str
 
     delta_t_performance_measurement_period = time() - t_0_performance_measurement_period
     t_0_performance_measurement_period_h = utils.logger.get_delta_t_h(t=delta_t_performance_measurement_period)
-    delta_t_epoch = time() - t_0_epoch
-    delta_t_epoch_h = utils.logger.get_delta_t_h(t=delta_t_epoch)
 
     # Measurement compounding and file recording
     for metric_id in metrics_ids:
@@ -276,11 +291,6 @@ def train(*, basis_chkp_id: str = None, basis_cfg_id: str = None, device_id: str
           sum(metrics_measurement_lists['val'][metric_id])/len(metrics_measurement_lists['val'][metric_id])
         ]
       )
-    session_checkpoint_manager.training_history.content['datetime_ended'] = datetime.now().astimezone(timezone.utc).strftime('D%Y%m%d%H%M%SUTC0')
-    session_checkpoint_manager.training_history.content['total_time'] += delta_t_epoch
-
-    # Write training_history
-    session_checkpoint_manager.training_history.write()
 
     # If the current loss is optimal
     if session_checkpoint_manager.training_history.content['metrics_measurements']['val']['loss'][-1][-1] < opt_measurements['val']['loss']:
@@ -290,7 +300,7 @@ def train(*, basis_chkp_id: str = None, basis_cfg_id: str = None, device_id: str
         for metric_id in metrics_ids:
           opt_measurements[measurement_mode][metric_id] = session_checkpoint_manager.training_history.content['metrics_measurements'][measurement_mode][metric_id][-1][-1]
 
-      # Record and write tparams
+      # Record and store tparams
       session_checkpoint_manager.opt_tparams.content = trainable_model.state_dict()
       session_checkpoint_manager.opt_tparams.write()
 
@@ -302,6 +312,22 @@ def train(*, basis_chkp_id: str = None, basis_cfg_id: str = None, device_id: str
         for metric_id in metrics_ids:
           worst_measurements[measurement_mode][metric_id] = session_checkpoint_manager.training_history.content['metrics_measurements'][measurement_mode][metric_id][-1][-1]
 
+    improvements = pd.DataFrame\
+    (
+      data=np.array\
+      (
+        [
+          [
+            '%.2f %%' % ( 100 * (session_checkpoint_manager.training_history.content['metrics_measurements']['val'][metric_id][-1][-1] - opt_measurements['val'][metric_id]) / (opt_measurements['val'][metric_id] + 10**(-8)) ),
+            '%.2f %%' % ( 100 * (session_checkpoint_manager.training_history.content['metrics_measurements']['val'][metric_id][-1][-1] - worst_measurements['val'][metric_id]) / (worst_measurements['val'][metric_id] + 10**(-8)) ),
+            '%.2f %%' % ( 100 * (session_checkpoint_manager.training_history.content['metrics_measurements']['val'][metric_id][-1][-1] - init_measurements['val'][metric_id]) / (init_measurements['val'][metric_id] + 10**(-8)) )
+          ]
+        ]
+      ),
+      index=['loss'],
+      columns=['val_v_opt', 'val_v_worst', 'val_v_init']
+    )
+
     last_model_measurements = pd.DataFrame\
     (
       data=np.array\
@@ -312,19 +338,23 @@ def train(*, basis_chkp_id: str = None, basis_cfg_id: str = None, device_id: str
             session_checkpoint_manager.training_history.content['metrics_measurements']['train'][metric_id][-1][1],
             session_checkpoint_manager.training_history.content['metrics_measurements']['train'][metric_id][-1][2],
             session_checkpoint_manager.training_history.content['metrics_measurements']['train'][metric_id][-1][3],
-            session_checkpoint_manager.training_history.content['metrics_measurements']['val'][metric_id][-1][-1],
-            '%.2f %%' % ( 100 * (session_checkpoint_manager.training_history.content['metrics_measurements']['val'][metric_id][-1][-1] - opt_measurements['val'][metric_id]) / (opt_measurements['val'][metric_id] + 10**(-8)) ),
-            '%.2f %%' % ( 100 * (session_checkpoint_manager.training_history.content['metrics_measurements']['val'][metric_id][-1][-1] - worst_measurements['val'][metric_id]) / (worst_measurements['val'][metric_id] + 10**(-8)) ),
-            '%.2f %%' % ( 100 * (session_checkpoint_manager.training_history.content['metrics_measurements']['val'][metric_id][-1][-1] - init_measurements['val'][metric_id]) / (init_measurements['val'][metric_id] + 10**(-8)) )
+            session_checkpoint_manager.training_history.content['metrics_measurements']['val'][metric_id][-1][-1]
           ] for metric_id in metrics_ids
         ]
       ),
       index=metrics_ids,
-      columns=['est_train_min', 'est_train_max', 'est_train_avg', 'train', 'val', 'val_v_opt', 'val_v_worst', 'val_v_init']
+      columns=['est_train_min', 'est_train_max', 'est_train_avg', 'train', 'val']
     )
 
-    # Write last model
+    delta_t_epoch = time() - t_0_epoch
+    delta_t_epoch_h = utils.logger.get_delta_t_h(t=delta_t_epoch)
+    session_checkpoint_manager.training_history.content['total_time'] += delta_t_epoch
+    session_checkpoint_manager.training_history.content['datetime_ended'] = datetime.now().astimezone(timezone.utc).strftime('D%Y%m%d%H%M%SUTC0')
+
     session_checkpoint_manager.tparams.content = trainable_model.state_dict()
+
+    # Epoch persistent storage
+    session_checkpoint_manager.training_history.write()
     session_checkpoint_manager.tparams.write()
 
     # stdout: Epoch state
@@ -332,12 +362,12 @@ def train(*, basis_chkp_id: str = None, basis_cfg_id: str = None, device_id: str
     print('Epoch time: %s'%(delta_t_epoch_h))
     print('Performance measurement time: %s'%(t_0_performance_measurement_period_h))
     print()
+    print(tabulate(improvements, headers='keys', tablefmt='psql'))
     print(tabulate(last_model_measurements, headers='keys', tablefmt='psql'))
 
-  delta_t = time() - t_0_training
+  delta_t_training = utils.logger.get_delta_t_h(t=session_checkpoint_manager.training_history.content['total_time'])
 
-  print('Training completed.')
+  print('\nTraining completed.')
   print('\n[TRAINING CONCLUSIVE REPORT]\n')
-  print('Exported Checkpoint -> \n%s'%(current_session_chkp_id))
-  # first train loss, worst train loss, opt train loss, final train loss
-  # first val loss, worst val loss, opt val loss, final val loss
+  print('Total training time: %s'%(delta_t_training))
+  print('Exported Checkpoint:\n%s'%(current_session_chkp_id))
