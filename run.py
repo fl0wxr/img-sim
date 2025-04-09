@@ -1,10 +1,10 @@
 import os
 import sys
+import argparse
 
 os.environ['ROOT_ABS_DP'] = os.path.abspath(os.path.dirname(__file__))
 sys.path.append(os.path.join(os.environ['ROOT_ABS_DP'], 'src'))
 
-import argparse
 from engine.trainer import train as train
 
 
