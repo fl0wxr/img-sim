@@ -3,9 +3,7 @@ import json
 import shutil
 import glob
 import torch
-from datetime import datetime, timezone
-from collections import OrderedDict
-from torch.nn import Parameter
+from datetime import datetime
 
 
 class File_:
@@ -51,6 +49,14 @@ class TpFile(File_):
     if not('disableExports' in os.environ['DEBUG_CONFIG'].split(';')):
       torch.save(obj=self.content, f=self.abs_fp)
 
+class ImgFile(File_):
+
+  def __init__(self, abs_fp: str):
+    super().__init__(abs_fp=abs_fp)
+
+  def write(self):
+    self.content.save(self.abs_fp)
+
 class CheckpointStorageManager:
   '''
   Description:
@@ -83,10 +89,14 @@ class CheckpointStorageManager:
     self.tparams = TpFile(abs_fp=os.path.join(self.chkp_root_abs_dp, 'tparams.pt'))
     self.opt_tparams = TpFile(abs_fp=os.path.join(self.chkp_root_abs_dp, 'opt_tparams.pt'))
     self.training_history = JsonFile(abs_fp=os.path.join(self.chkp_root_abs_dp, 'training-history.json'))
-    self.loss_history_plot = File_(abs_fp=os.path.join(self.chkp_root_abs_dp, 'loss.png'))
-    self.training_stdout = File_(abs_fp=os.path.join(self.chkp_root_abs_dp, 'training.log'))
 
     self.initialize_content(basis_id=basis_id)
+
+    self.metrics_ids = list(self.training_history.content['metrics_measurements']['train'].keys())
+
+    self.loss_history_plot = dict()
+    for metric_id in self.metrics_ids:
+      self.loss_history_plot[metric_id] = ImgFile(abs_fp=os.path.join(self.chkp_root_abs_dp, f'{metric_id}.png'))
 
   def check_training_history_file_structural_integrity(self):
     '''
@@ -153,7 +163,7 @@ class CheckpointStorageManager:
     if 'checkpoint/D20' in self.chkp_root_abs_dp:
       shutil.rmtree(self.chkp_root_abs_dp)
 
-  def invert_dataset_metric(self) -> dict[dict[list]]:
+  def get_inverted_dataset_metric(self) -> dict[dict[list]]:
     '''
     Description:
       From the metrics_measurements (alias for self.training_history.content['metrics_measurements']), this function is used to invert the dataset and metric index positions.

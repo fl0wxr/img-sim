@@ -13,7 +13,7 @@ checkpoint/*
 
 # Other irrelevant entities
 unit_test
-commit-msg.md
+commit-msg*
 
 # Exclusion
 !**/.gitkeep
