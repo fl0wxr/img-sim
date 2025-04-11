@@ -1,8 +1,9 @@
 import os
-import io
-import requests
 from matplotlib import pyplot as plt
 from matplotlib.ticker import MaxNLocator
+from PIL import Image
+from io import BytesIO
+
 
 class Plot2D:
   '''
@@ -37,29 +38,14 @@ class Plot2D:
     self.fill_color = 'skyblue'
 
     self.metric_id = metric_id
+
+    self.fig, self.ax = plt.subplots(figsize=(15, 7))
+
     if y is not(None):
-      self.check_measurements_integrity(y_like=y)
-      self.y = y
-      self.x = list(range(len(self.y['train'])))
+      self.update_measurements(y_new=y, clear=False)
     else:
       self.y = {'train': [], 'val': []}
       self.x = []
-
-    self.fig, self.ax = plt.subplots(figsize=(15, 7))
-    self.ax.set_xlabel('epoch')
-    self.ax.set_ylabel(metric_id)
-    self.ax.grid(True)
-
-    # Display integer valued x-axis ticks only
-    self.ax.xaxis.set_major_locator(MaxNLocator(integer=True))
-
-    self.img_fname = '.'.join([metric_id, '.png'])
-
-    self.ax.plot(self.x, [self.y['train'][epoch][3] for epoch in self.x], label='train', color=self.plot_train_color)
-    self.ax.plot(self.x, [self.y['val'][epoch][0] for epoch in self.x], label='val', color=self.plot_val_color)
-    self.ax.fill_between(self.x, [self.y['train'][epoch][0] for epoch in self.x], [self.y['train'][epoch][1] for epoch in self.x], color=self.fill_color, alpha=0.4, label='train deviation')
-
-    self.ax.legend()
 
   def check_measurements_integrity(self, y_like: dict[list[list]]):
     '''
@@ -74,6 +60,9 @@ class Plot2D:
 
     integrity_status = integrity_status and {'train', 'val'} == set(y_like.keys())
     integrity_status = integrity_status and len(y_like['train']) == len(y_like['val'])
+
+    assert integrity_status, 'E: Invalid y format.'
+
     for value in y_like['train']:
       if not(type(value) == list and len(value) == 4):
         integrity_status = integrity_status and False
@@ -83,24 +72,36 @@ class Plot2D:
 
     assert integrity_status, 'E: Invalid y format.'
 
-  def concat_measurements(self, y_new: dict[list[list]]):
+  def update_measurements(self, y_new: dict[list[list]], clear: bool):
     '''
     Description:
-      Concatenates (extends) y-axis measurements. Updates plot object accordingly.
+      Updates y-axis measurements. Updates plot object accordingly.
 
     Parameters:
-      `y_new`. New values to be concatenated in self.y . Has the same format as y from __init__.
+      `y_new`. New updated measurements. Has the same format as self.y.
+      `clear`. Reset toggler of pyplot object.
     '''
 
     self.check_measurements_integrity(y_like=y_new)
 
-    self.y['train'].extend(y_new['train'])
-    self.y['val'].extend(y_new['val'])
+    self.y = y_new
     self.x = list(range(len(self.y['train'])))
 
-    self.ax.plot(self.x, [y_new['train'][epoch][3] for epoch in self.x], label='train', color=self.plot_train_color)
-    self.ax.plot(self.x, [y_new['val'][epoch][0] for epoch in self.x], label='val', color=self.plot_val_color)
-    self.ax.fill_between(self.x, [y_new['train'][epoch][0] for epoch in self.x], [y_new['train'][epoch][1] for epoch in self.x], color=self.fill_color, alpha=0.4, label='train deviation')
+    if clear:
+      self.ax.clear()
+
+    self.ax.set_xlabel('epoch')
+    self.ax.set_ylabel(self.metric_id)
+    self.ax.grid(True)
+
+    # Display integer valued x-axis ticks only
+    self.ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+
+    self.ax.plot(self.x, [self.y['train'][epoch][3] for epoch in self.x], label='train', color=self.plot_train_color)
+    self.ax.plot(self.x, [self.y['val'][epoch][0] for epoch in self.x], label='val', color=self.plot_val_color)
+    self.ax.fill_between(self.x, [self.y['train'][epoch][0] for epoch in self.x], [self.y['train'][epoch][1] for epoch in range(len(self.x))], color=self.fill_color, alpha=0.4, label='train dvt')
+
+    self.ax.legend()
 
   def plt2image(self) -> Image.Image:
     '''
