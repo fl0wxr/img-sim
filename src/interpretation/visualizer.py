@@ -113,7 +113,7 @@ class Plot2D:
     '''
 
     buf = BytesIO()
-    self.fig.savefig(fname=buf, format='png', bbox_inches='tight')
+    self.fig.savefig(fname=buf, format='png', bbox_inches='tight', dpi=300)
     buf.seek(0)
     img = Image.open(buf)
 
