@@ -102,4 +102,18 @@ class Plot2D:
     self.ax.plot(self.x, [y_new['val'][epoch][0] for epoch in self.x], label='val', color=self.plot_val_color)
     self.ax.fill_between(self.x, [y_new['train'][epoch][0] for epoch in self.x], [y_new['train'][epoch][1] for epoch in self.x], color=self.fill_color, alpha=0.4, label='train deviation')
 
-    self.fig.savefig(os.path.join(os.environ['ROOT_ABS_DP'], 'tmp/loss.png'))
+  def plt2image(self) -> Image.Image:
+    '''
+    Description:
+      Generates and returns an image object of the plot.
+
+    Returns:
+      `img`. The plot image.
+    '''
+
+    buf = BytesIO()
+    self.fig.savefig(fname=buf, format='png', bbox_inches='tight')
+    buf.seek(0)
+    img = Image.open(buf)
+
+    return img

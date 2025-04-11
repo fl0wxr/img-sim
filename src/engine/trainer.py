@@ -68,7 +68,7 @@ def train(*, basis_chkp_id: str = None, basis_cfg_id: str = None, device_id: str
 
   # Prepare training history
   epoch_offset = len(session_checkpoint_manager.training_history.content['metrics_measurements']['train']['loss'])
-  metrics_ids = list(session_checkpoint_manager.training_history.content['metrics_measurements']['train'].keys())
+  metrics_ids = session_checkpoint_manager.metrics_ids
 
   if 'disableExports' in os.environ['DEBUG_CONFIG'].split(';'):
     session_checkpoint_manager.rm_chkp()
@@ -108,6 +108,14 @@ def train(*, basis_chkp_id: str = None, basis_cfg_id: str = None, device_id: str
         init_measurements[measurement_mode][metric_id] = None
         opt_measurements[measurement_mode][metric_id] = None
         worst_measurements[measurement_mode][metric_id] = None
+
+  plt2d = dict()
+  inv_metrics_measurements = session_checkpoint_manager.get_inverted_dataset_metric()
+  for metric_id in metrics_ids:
+    plt2d[metric_id] = interpretation.visualizer.Plot2D(metric_id=metric_id, y=inv_metrics_measurements[metric_id])
+    session_checkpoint_manager.loss_history_plot[metric_id].content = plt2d[metric_id].plt2image()
+    session_checkpoint_manager.loss_history_plot[metric_id].write()
+  del inv_metrics_measurements
 
   # stdout: print shapes, sizes, notify training is about to start
   print('\n[TRAINING SUMMARY]\n')
@@ -346,16 +354,25 @@ def train(*, basis_chkp_id: str = None, basis_cfg_id: str = None, device_id: str
       columns=['est_train_min', 'est_train_max', 'est_train_avg', 'train', 'val']
     )
 
-    delta_t_epoch = time() - t_0_epoch
-    delta_t_epoch_h = utils.logger.get_delta_t_h(t=delta_t_epoch)
-    session_checkpoint_manager.training_history.content['total_time'] += delta_t_epoch
-    session_checkpoint_manager.training_history.content['datetime_ended'] = datetime.now().astimezone(timezone.utc).strftime('D%Y%m%d%H%M%SUTC0')
-
     session_checkpoint_manager.tparams.content = trainable_model.state_dict()
 
     # Epoch persistent storage
     session_checkpoint_manager.training_history.write()
     session_checkpoint_manager.tparams.write()
+
+    # Update and store plot
+    inv_metrics_measurements = session_checkpoint_manager.get_inverted_dataset_metric()
+    for metric_id in metrics_ids:
+      plt2d[metric_id].update_measurements(y_new=inv_metrics_measurements[metric_id], clear=True)
+      session_checkpoint_manager.loss_history_plot[metric_id].content = plt2d[metric_id].plt2image()
+      session_checkpoint_manager.loss_history_plot[metric_id].write()
+    del inv_metrics_measurements
+
+    # Time updates
+    delta_t_epoch = time() - t_0_epoch
+    delta_t_epoch_h = utils.logger.get_delta_t_h(t=delta_t_epoch)
+    session_checkpoint_manager.training_history.content['total_time'] += delta_t_epoch
+    session_checkpoint_manager.training_history.content['datetime_ended'] = datetime.now().astimezone(timezone.utc).strftime('D%Y%m%d%H%M%SUTC0')
 
     # stdout: Epoch state
     print('[EPOCH CONCLUSIVE REPORT]')
