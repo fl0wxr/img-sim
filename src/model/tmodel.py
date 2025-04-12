@@ -5,6 +5,21 @@ import model.backbone
 import model.head
 
 
+class TrainableModel(torch.nn.Module):
+
+  def __init__(self, base, proj, device: torch.device):
+
+    super(TrainableModel, self).__init__()
+    self.base = base.to(device)
+    self.proj = proj.to(device)
+
+  def forward(self, x):
+
+    h = self.base(x)
+    g = self.proj(h)
+
+    return g
+
 def trainable_model_assembler(model_architecture_cfg: dict, device: torch.device, state_dict: OrderedDict[str, Parameter] = None) -> torch.nn.Module:
   '''
   Description:
@@ -27,7 +42,7 @@ def trainable_model_assembler(model_architecture_cfg: dict, device: torch.device
     base = model.backbone.SimpleCNN(N_repr=model_architecture_cfg['N_repr'], device=device)
     proj = model.head.MLP(N_repr=model_architecture_cfg['N_repr'], device=device)
 
-  trainable_model = torch.nn.Sequential(base, proj)
+  trainable_model = TrainableModel(base=base, proj=proj, device=device)
 
   if state_dict is not None:
     trainable_model.load_state_dict(state_dict=state_dict)

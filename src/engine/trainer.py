@@ -3,15 +3,9 @@ from time import time
 from datetime import datetime, timezone
 import numpy as np
 import torch
-import data.augmentor
 import data.dataset
-import data.utils
-import data.augmentor
 import engine.optimizer
-import engine.trainer
 import interpretation.visualizer
-import model.backbone
-import model.head
 import model.tmodel
 import utils.storage
 import utils.logger
@@ -20,23 +14,23 @@ import copy
 from tabulate import tabulate
 
 
-def train(*, basis_chkp_id: str = None, basis_cfg_id: str = None, device_id: str = None):
+def train(*, basis_chkp_id: str = None, basis_cfg_fp: str = None, device_id: str = None):
   '''
   Description:
     Training API.
 
   Parameters:
     `basis_chkp_id`. Checkpoint identifier to be parsed.
-    `basis_cfg_id`. Template identifier to be parsed.
+    `basis_cfg_fp`. Template configuration file path to be parsed.
     `device_id`. Device identifier to be selected for DL framework.
   '''
 
-  assert bool(basis_chkp_id)^bool(basis_cfg_id), 'E: Exactly one of chkp_id and tplt_id must be specified.'
+  assert bool(basis_chkp_id)^bool(basis_cfg_fp), 'E: Exactly one of chkp_id and tplt_id must be specified.'
 
-  if basis_chkp_id is not(None): # and tplt_id is None
-    basis_id = basis_chkp_id
-  else: # chkp_id is None and tplt_id is not None
-    basis_id = basis_cfg_id
+  if basis_chkp_id is not(None):
+    basis_path = basis_chkp_id
+  else:
+    basis_path = basis_cfg_fp
 
   ## Training Initialization
 
@@ -52,7 +46,7 @@ def train(*, basis_chkp_id: str = None, basis_cfg_id: str = None, device_id: str
   current_session_chkp_id = session_init_datetime.strftime('D%Y%m%d%H%M%SUTC0')
 
   # Parse checkpoint information or some-config.json and then initialize the current session's checkpoint
-  session_checkpoint_manager = utils.storage.CheckpointStorageManager(chkp_id=current_session_chkp_id, basis_id=basis_id, session_datetime=session_init_datetime)
+  session_checkpoint_manager = utils.storage.CheckpointStorageManager(chkp_id=current_session_chkp_id, basis_path=basis_path, session_datetime=session_init_datetime)
 
   # Prepare configuration parameters
   rng_seed = session_checkpoint_manager.config.content['training_cfg']['rng_seed']
@@ -70,8 +64,6 @@ def train(*, basis_chkp_id: str = None, basis_cfg_id: str = None, device_id: str
   epoch_offset = len(session_checkpoint_manager.training_history.content['metrics_measurements']['train']['loss'])
   metrics_ids = session_checkpoint_manager.metrics_ids
 
-  if 'disableExports' in os.environ['DEBUG_CONFIG'].split(';'):
-    session_checkpoint_manager.rm_chkp()
   if 'limit2SmallSubsetofData' in os.environ['DEBUG_CONFIG'].split(';'):
     subset_size = 100
 
@@ -133,6 +125,7 @@ def train(*, basis_chkp_id: str = None, basis_cfg_id: str = None, device_id: str
   compounding_delta_t_stdout = 0
 
   initial_val_loss = []
+
 
   # Val performance measurement
   while next(dataset.val_set):
@@ -375,7 +368,7 @@ def train(*, basis_chkp_id: str = None, basis_cfg_id: str = None, device_id: str
     session_checkpoint_manager.training_history.content['datetime_ended'] = datetime.now().astimezone(timezone.utc).strftime('D%Y%m%d%H%M%SUTC0')
 
     # stdout: Epoch state
-    print('[EPOCH CONCLUSIVE REPORT]')
+    print('\n[EPOCH CONCLUSIVE REPORT]\n')
     print('Epoch time: %s'%(delta_t_epoch_h))
     print('Performance measurement time: %s'%(t_0_performance_measurement_period_h))
     print()

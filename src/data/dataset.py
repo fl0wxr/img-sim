@@ -15,12 +15,13 @@ class DataIter:
     Equips data examples with a memory efficient iterator. Provides additional training step utilities (e.g., minibatch dataset segmentation and shuffling). Also supports augmentation.
   '''
 
-  def __init__(self, x: torch.tensor, y: torch.tensor, M_minibatch: int):
+  def __init__(self, x: torch.tensor, y: torch.tensor, M_minibatch: int, augm: bool):
     '''
     Parameters:
       `x`. Shape (M, C, H, W).
       `y`. Shape (M,).
       `M_minibatch`.
+      `augm`. Specifies whether augmentated pairs are generated or not, every time a minibatch is sampled in self.__next__.
     '''
 
     self.x = x
@@ -28,7 +29,9 @@ class DataIter:
     self.M_minibatch = M_minibatch
     self.ist_shape = self.x.shape[1:]
     self.shuffle = True
-    self.agm = data.augmentor.ImageAugmentor()
+    self.augm = augm
+    if self.augm:
+      self.augmentor = data.augmentor.ImageAugmentor()
 
     self.minibatch_idx = -1
     self.minibatch_instance_indcs_grp = data.utils.generate_minibatch_idcs(M=len(self), M_grp=self.M_minibatch, shuffle=self.shuffle)
@@ -42,9 +45,9 @@ class DataIter:
     Description:
       Provides easy access to the set of current minibatch by updating the corresponding attributes.
       |-- `self.minibatch_idx`. Type int. Minibatch index.
-      |-- `self.x_current_grp_agm_pairs`. Type torch.tensor. Shape (G[self.minibatch_idx], 2, 3, H, W). The agumented pairs of current minibatch.
-      |-- `self.x_current_grp`. Type torch.tensor. Shape (G[self.minibatch_idx], 3, H, W) Base instances.
-      |-- `self.y_current_grp`. Type torch.tensor. Shape (G[self.minibatch_idx],) Base targets.
+      |-- `self.x_current_grp_agm_pairs`. Type NDArray. Shape (G[self.minibatch_idx], 2, 3, H, W). The agumented pairs of current minibatch.
+      |-- `self.x_current_grp`. Type NDArray. Shape (G[self.minibatch_idx], 3, H, W) Base instances.
+      |-- `self.y_current_grp`. Type NDArray. Shape (G[self.minibatch_idx],) Base targets.
 
       Where G[self.minibatch_idx] is the size of the minibatch with index self.minibatch_idx. The target size is self.M_minibatch, but the last minibatch may not always correspond to that size.
 
@@ -60,11 +63,12 @@ class DataIter:
     else:
       self.x_current_grp = self.x[self.minibatch_instance_indcs_grp[self.minibatch_idx]]
       self.y_current_grp = self.y[self.minibatch_instance_indcs_grp[self.minibatch_idx]]
-      x_current_grp_np_chw = np.transpose(a=self.x_current_grp.cpu().numpy(), axes=(0, 2, 3, 1))
-      self.agm.update_input_instance_set(data_set_ist_nrm_bgr=x_current_grp_np_chw)
-      x_current_grp_agm_pairs_np = np.transpose(a=self.agm.sample_augmented_pairs(), axes=(0, 1, 4, 2, 3))
-      self.x_current_grp_agm_pairs = torch.tensor(x_current_grp_agm_pairs_np, dtype=self.x_current_grp.dtype, device=self.x_current_grp.device)
-      assert len(self.x_current_grp_agm_pairs.shape) == 5 and self.x_current_grp_agm_pairs.shape[1:] == (2, self.ist_shape[0], self.ist_shape[1], self.ist_shape[2]) and self.x_current_grp_agm_pairs.shape[0] <= self.M_minibatch, 'E: Invalid augmentation pairs shape.'
+      if self.augm:
+        x_current_grp_np_chw = np.transpose(a=self.x_current_grp.cpu().numpy(), axes=(0, 2, 3, 1))
+        self.augmentor.update_input_instance_set(data_set_ist_nrm_bgr=x_current_grp_np_chw)
+        x_current_grp_agm_pairs_np = np.transpose(a=self.augmentor.sample_augmented_pairs(), axes=(0, 1, 4, 2, 3))
+        self.x_current_grp_agm_pairs = torch.tensor(x_current_grp_agm_pairs_np, dtype=self.x_current_grp.dtype, device=self.x_current_grp.device)
+        assert len(self.x_current_grp_agm_pairs.shape) == 5 and self.x_current_grp_agm_pairs.shape[1:] == (2, self.ist_shape[0], self.ist_shape[1], self.ist_shape[2]) and self.x_current_grp_agm_pairs.shape[0] <= self.M_minibatch, 'E: Invalid augmentation pairs shape.'
 
     return not(reset)
 
@@ -77,7 +81,7 @@ class Cifar:
   |-- [1] https://www.cs.toronto.edu/~kriz/cifar.html.
   '''
 
-  def __init__(self, instance_prsd_shape: tuple, M_minibatch: int, train_fraction: int, subset_size: int, parse_labels: bool = False, device: str = 'cpu'):
+  def __init__(self, instance_prsd_shape: tuple, M_minibatch: int, train_fraction: int, subset_size: int, parse_labels: bool = False, augm: bool = True, device: str = 'cpu'):
     '''
     Parameters:
       `instance_prsd_shape`. Length 3. Target shape of instance tensor after its initial preprocessing.
@@ -85,6 +89,7 @@ class Cifar:
       `train_fraction`. The fraction of training examples compared to the rest of the dataset.
       `parse_labels`. Triggers label parsing.
       `subset_size`. The number of returned instances/examples. subset_size=None implies that all examples will be returned.
+      `augm`. Specifies whether augmentated pairs are generated or not, every time a minibatch is sampled in DataIter.__next__.
       `device`. Processing unit that will be utilized for the computation graph.
     '''
 
@@ -92,9 +97,9 @@ class Cifar:
     self.train_set_ist_prsd, self.val_set_ist_prsd, self.test_set_ist_prsd, self.train_set_tgt_prsd, self.val_set_tgt_prsd, self.test_set_tgt_prsd = self.initial_preprocessing(train_fraction=train_fraction, data_set_ist=data_set_ist, data_set_tgt=data_set_tgt, ist_shape=tuple(instance_prsd_shape), device=device)
     del data_set_ist, data_set_tgt
 
-    self.train_set = DataIter(x=self.train_set_ist_prsd, y=self.train_set_tgt_prsd, M_minibatch=M_minibatch)
-    self.val_set = DataIter(x=self.val_set_ist_prsd, y=self.val_set_tgt_prsd, M_minibatch=M_minibatch)
-    self.test_set = DataIter(x=self.test_set_ist_prsd, y=self.test_set_tgt_prsd, M_minibatch=M_minibatch)
+    self.train_set = DataIter(x=self.train_set_ist_prsd, y=self.train_set_tgt_prsd, M_minibatch=M_minibatch, augm=augm)
+    self.val_set = DataIter(x=self.val_set_ist_prsd, y=self.val_set_tgt_prsd, M_minibatch=M_minibatch, augm=augm)
+    self.test_set = DataIter(x=self.test_set_ist_prsd, y=self.test_set_tgt_prsd, M_minibatch=M_minibatch, augm=augm)
 
     self.C, self.H, self.W = self.train_set.ist_shape
 

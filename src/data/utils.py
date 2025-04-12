@@ -83,16 +83,16 @@ def split_data_set(data_set_ist: NDArray, data_set_tgt: NDArray | None = None, t
 
   train_set_ist = data_set_ist[:n_train_examples]
   complementary_set_ist = data_set_ist[n_train_examples:]
-  val_set_ist = complementary_set_ist[-n_test_examples:]
-  test_set_ist = complementary_set_ist[:-n_test_examples]
+  val_set_ist = complementary_set_ist[:-n_test_examples]
+  test_set_ist = complementary_set_ist[-n_test_examples:]
 
   if data_set_tgt is None:
     return train_set_ist, val_set_ist, test_set_ist
   else:
     train_set_tgt = data_set_tgt[:n_train_examples]
     complementary_set_tgt = data_set_tgt[n_train_examples:]
-    val_set_tgt = complementary_set_tgt[-n_test_examples:]
-    test_set_tgt = complementary_set_tgt[:-n_test_examples]
+    val_set_tgt = complementary_set_tgt[:-n_test_examples]
+    test_set_tgt = complementary_set_tgt[-n_test_examples:]
     return train_set_ist, val_set_ist, test_set_ist, train_set_tgt, val_set_tgt, test_set_tgt
 
 def normalize(data_set_ist: NDArray) -> NDArray:

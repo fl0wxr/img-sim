@@ -65,11 +65,11 @@ class CheckpointStorageManager:
 
   ROOT_ABS_DP = os.environ['ROOT_ABS_DP']
 
-  def __init__(self, chkp_id: str, basis_id: str, session_datetime: datetime):
+  def __init__(self, chkp_id: str, basis_path: str, session_datetime: datetime):
     '''
     Parameters:
       `chkp_id`. Used as the parent directory name for current checkpoint.
-      `basis_id`. Used as a basis to contruct the various data structures and directory of the session's checkpoint mechanism. Cases:
+      `basis_path`. Used as a basis to contruct the various data structures and directory of the session's checkpoint mechanism. Cases:
       |-- A existing configuration json file's base name from within the template directory.
       |-- A existing checkpoint directories base name that used as an initial point.
 
@@ -90,7 +90,7 @@ class CheckpointStorageManager:
     self.opt_tparams = TpFile(abs_fp=os.path.join(self.chkp_root_abs_dp, 'opt_tparams.pt'))
     self.training_history = JsonFile(abs_fp=os.path.join(self.chkp_root_abs_dp, 'training-history.json'))
 
-    self.initialize_content(basis_id=basis_id)
+    self.initialize_content(basis_path=basis_path)
 
     self.metrics_ids = list(self.training_history.content['metrics_measurements']['train'].keys())
 
@@ -120,18 +120,19 @@ class CheckpointStorageManager:
 
     assert integrity_status, 'E: Invalid training history file.'
 
-  def initialize_content(self, basis_id: str) -> dict:
+  def initialize_content(self, basis_path: str) -> dict:
     '''
     Description:
       Initializes training history and configuration files and data either from scratch using the template and config files, or simply by based on some existing checkpoint data (e.g., past training-history.json measurements are preserved).
 
     Parameters:
-      `basis_id`. Path for basis/source checkpoint for training restart or the path of some configuration template if this is a clean start.
+      `basis_path`. Path for basis/source checkpoint for training restart or the path of some configuration template if this is a clean start.
     '''
 
-    if basis_id.split('.')[-1] != 'json': # A session directory is specified.
+    if basis_path.split('.')[-1] != 'json':
+      # A session directory is specified.
 
-      basis_chkp_dp = os.path.join(self.ROOT_ABS_DP, 'checkpoint', basis_id)
+      basis_chkp_dp = os.path.abspath(os.path.join(self.ROOT_ABS_DP, 'checkpoint', basis_path))
       assert os.path.exists(basis_chkp_dp), 'E: Invalid source checkpoint directory name.'
       for basis_chkp_fp in glob.glob(os.path.join(basis_chkp_dp, "*")):
         shutil.copy(basis_chkp_fp, self.chkp_root_abs_dp)
@@ -144,7 +145,7 @@ class CheckpointStorageManager:
     else: # A config file is specified.
 
       # Copy everything to new session directory
-      basis_config_fp = os.path.join(self.ROOT_ABS_DP, 'template', basis_id)
+      basis_config_fp = os.path.abspath(basis_path)
       assert os.path.exists(basis_config_fp), 'E: Invalid configuration filename.'
       shutil.copy(basis_config_fp, self.config.abs_fp)
       shutil.copy(os.path.join(self.ROOT_ABS_DP, 'template', 'training-history.json'), self.training_history.abs_fp)
@@ -158,10 +159,6 @@ class CheckpointStorageManager:
       self.training_history.content['datetime_ended'] = self.session_datetime.strftime('D%Y%m%d%H%M%SUTC0')
 
     self.check_training_history_file_structural_integrity()
-
-  def rm_chkp(self):
-    if 'checkpoint/D20' in self.chkp_root_abs_dp:
-      shutil.rmtree(self.chkp_root_abs_dp)
 
   def get_inverted_dataset_metric(self) -> dict[dict[list]]:
     '''
@@ -196,3 +193,9 @@ class CheckpointStorageManager:
       }
 
     return inv_metrics_measurements
+
+def rm_chkp():
+  paths = glob.glob(os.path.join(os.environ['ROOT_ABS_DP'], 'checkpoint', '*'))
+  for path in paths:
+    if 'checkpoint/D' in path:
+      shutil.rmtree(path)
