@@ -349,10 +349,6 @@ def train(*, basis_chkp_id: str = None, basis_cfg_fp: str = None, device_id: str
 
     session_checkpoint_manager.tparams.content = trainable_model.state_dict()
 
-    # Epoch persistent storage
-    session_checkpoint_manager.training_history.write()
-    session_checkpoint_manager.tparams.write()
-
     # Update and store plot
     inv_metrics_measurements = session_checkpoint_manager.get_inverted_dataset_metric()
     for metric_id in metrics_ids:
@@ -367,6 +363,10 @@ def train(*, basis_chkp_id: str = None, basis_cfg_fp: str = None, device_id: str
     session_checkpoint_manager.training_history.content['total_time'] += delta_t_epoch
     session_checkpoint_manager.training_history.content['datetime_ended'] = datetime.now().astimezone(timezone.utc).strftime('D%Y%m%d%H%M%SUTC0')
 
+    # Epoch persistent storage
+    session_checkpoint_manager.training_history.write()
+    session_checkpoint_manager.tparams.write()
+
     # stdout: Epoch state
     print('\n[EPOCH CONCLUSIVE REPORT]\n')
     print('Epoch time: %s'%(delta_t_epoch_h))
@@ -378,6 +378,43 @@ def train(*, basis_chkp_id: str = None, basis_cfg_fp: str = None, device_id: str
   delta_t_training = utils.logger.get_delta_t_h(t=session_checkpoint_manager.training_history.content['total_time'])
 
   print('\nTraining completed.')
+
+  print('\n[TEST SET EVALUATION]\n')
+
+  t_0 = time()
+  compounding_delta_t_stdout = 0
+
+  test_losses = []
+
+  # Test performance measurement
+  while next(dataset.test_set):
+
+    # Get augmented pairs from current minibatch
+    test_set_ist_minibatch_pairs = dataset.test_set.x_current_grp_agm_pairs
+
+    # Forward pass
+    test_set_ist_minibatch_pairs_descriptor = trainable_model(test_set_ist_minibatch_pairs)
+    test_loss_minibatch = contrastive_loss(descriptor_pairs=test_set_ist_minibatch_pairs_descriptor, temperature=.1, device=device)
+
+    delta_t_iteration = (time()-t_0) / (dataset.test_set.minibatch_idx+1)
+
+    test_losses.append(test_loss_minibatch.item())
+
+    # stdout: Iteration state
+    compounding_delta_t_stdout += delta_t_iteration
+    if dataset.test_set.minibatch_idx == 0 or dataset.test_set.minibatch_idx == dataset.test_set.n_steps - 1 or compounding_delta_t_stdout > 0.1:
+      compounding_delta_t_stdout = 0
+      progress_bar_ist = utils.logger.get_progress_bar_ist(i=dataset.test_set.minibatch_idx, n=dataset.test_set.n_steps-1, delta_t=delta_t_iteration, loss=test_loss_minibatch.item(), bar_length = 30, bar_background_char = ' ', bar_fill_char = '=')
+      utils.logger.dnmc_stdout_write(s=progress_bar_ist)
+
+  test_loss = sum(test_losses) / len(test_losses)
+
+  for metric_id in metrics_ids:
+    session_checkpoint_manager.training_history.content['metrics_measurements']['final_model_test'][metric_id] = test_loss
+
+  # Last training history overwrite
+  session_checkpoint_manager.training_history.write()
+
   print('\n[TRAINING CONCLUSIVE REPORT]\n')
   print('Total training time: %s'%(delta_t_training))
   print('Exported Checkpoint:\n%s'%(current_session_chkp_id))
