@@ -15,20 +15,21 @@ class DataIter:
     Equips data examples with a memory efficient iterator. Provides additional training step utilities (e.g., minibatch dataset segmentation and shuffling). Also supports augmentation.
   '''
 
-  def __init__(self, x: torch.tensor, y: torch.tensor, M_minibatch: int, augm: bool):
+  def __init__(self, x: torch.tensor, y: torch.tensor, M_minibatch: int, augm: bool, shuffle: bool = True):
     '''
     Parameters:
       `x`. Shape (M, C, H, W).
       `y`. Shape (M,).
       `M_minibatch`.
       `augm`. Specifies whether augmentated pairs are generated or not, every time a minibatch is sampled in self.__next__.
+      `shuffle`. Shuffle toggler.
     '''
 
     self.x = x
     self.y = y
     self.M_minibatch = M_minibatch
     self.ist_shape = self.x.shape[1:]
-    self.shuffle = True
+    self.shuffle = shuffle
     self.augm = augm
     if self.augm:
       self.augmentor = data.augmentor.ImageAugmentor()

@@ -126,7 +126,6 @@ def train(*, basis_chkp_id: str = None, basis_cfg_fp: str = None, device_id: str
 
   initial_val_loss = []
 
-
   # Val performance measurement
   while next(dataset.val_set):
 
@@ -187,6 +186,7 @@ def train(*, basis_chkp_id: str = None, basis_cfg_fp: str = None, device_id: str
 
     print('Iterative optimization state:')
 
+    # Optimization loop
     while next(dataset.train_set):
 
       # Get augmented pairs from current minibatch

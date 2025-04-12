@@ -199,3 +199,12 @@ def rm_chkp():
   for path in paths:
     if 'checkpoint/D' in path:
       shutil.rmtree(path)
+
+def rm_tmp():
+  paths = glob.glob(os.path.join(os.environ['ROOT_ABS_DP'], 'tmp', '*'))
+  for path in paths:
+    if 'tmp/' in path:
+      if os.path.isdir(path):
+        shutil.rmtree(path)
+      elif os.path.isfile(path):
+        os.remove(path)

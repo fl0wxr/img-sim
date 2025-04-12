@@ -3,6 +3,11 @@ from matplotlib import pyplot as plt
 from matplotlib.ticker import MaxNLocator
 from PIL import Image
 from io import BytesIO
+import numpy as np
+from numpy.typing import NDArray
+
+
+plt.rcParams['font.family'] = 'monospace'
 
 
 class Plot2D:
@@ -109,12 +114,50 @@ class Plot2D:
       Generates and returns an image object of the plot.
 
     Returns:
-      `img`. The plot image.
+      `plt_img`. The plot image.
     '''
 
     buf = BytesIO()
     self.fig.savefig(fname=buf, format='png', bbox_inches='tight', dpi=300)
     buf.seek(0)
-    img = Image.open(buf)
+    plt_img = Image.open(buf)
 
-    return img
+    return plt_img
+
+def topnbottom5images(top5: NDArray, bottom5: NDArray, top5_scores: list, bottom5_scores: list) -> Image.Image:
+  '''
+  Description:
+    Constructs a (5, 2) figure grid, where the first column displays the top 5 most similar images and the right column displays the bottom 5 least similar images, compared to some basis image. The ranking was produced by a contrastive model.
+
+  Parameters:
+    `top5`. Shape (5, H, W, C).
+    `bottom5`. Shape (5, H, W, C).
+    `top5_scores`. Length 5. Contains the similarity scores of top5.
+    `bottom5_scores`. Length 5. Contains the similarity scores of bottom5.
+
+  Returns:
+    `plt_img`.
+  '''
+
+  assert top5.shape == bottom5.shape, 'E: Shape inconsistency.'
+  assert top5.shape[0] == 5, 'E: Number of images must be set to 5.'
+
+  imgs = np.stack(arrays=[top5, bottom5], axis=1)
+  scores = np.stack(arrays=[top5_scores, bottom5_scores], axis=1)
+
+  fig, ax = plt.subplots(nrows=5, ncols=2, figsize=(6, 12))
+
+  fig.suptitle('Similarity with base image\nDescenting order row-wise\nTop 5 - left col | Bottom 5 - right col', fontsize=14)
+
+  for row_idx in range(5):
+    for col_idx in range(2):
+      ax[row_idx, col_idx].set_title(f'sim: {scores[row_idx, col_idx]:.5f}')
+      ax[row_idx, col_idx].imshow(imgs[row_idx, col_idx])
+      ax[row_idx, col_idx].axis('off')
+
+  buf = BytesIO()
+  fig.savefig(fname=buf, format='png', bbox_inches='tight', dpi=300)
+  buf.seek(0)
+  plt_img = Image.open(buf)
+
+  return plt_img

@@ -20,6 +20,6 @@ def similarity(vec: torch.Tensor, mat: torch.Tensor) -> torch.Tensor:
   norm2_mat = torch.norm(input=mat, p=2, dim=1, keepdim=True) # Shape (m, 1)
   vec_normalized = vec / (norm2_vec + 1e-10)
   mat_normalized = mat / (norm2_mat + 1e-10)
-  sim_mat = torch.matmul(input=mat_normalized, other=vec_normalized.T)
+  sim_mat = torch.matmul(input=mat_normalized, other=vec_normalized.T)[:, 0]
 
   return sim_mat
