@@ -106,6 +106,10 @@ class Plot2D:
     self.ax.plot(self.x, [self.y['val'][epoch][0] for epoch in self.x], label='val', color=self.plot_val_color)
     self.ax.fill_between(self.x, [self.y['train'][epoch][0] for epoch in self.x], [self.y['train'][epoch][1] for epoch in range(len(self.x))], color=self.fill_color, alpha=0.4, label='train dvt')
 
+    if len(self.y['val'][0:2]) != 0:
+      top = [self.y['val'][epoch][0] for epoch in ({0, 1} & set(self.x))]
+      self.ax.set_ylim(bottom=0, top=min(top))
+
     self.ax.legend()
 
   def plt2image(self) -> Image.Image:

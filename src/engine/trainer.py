@@ -37,6 +37,7 @@ def train(*, basis_chkp_id: str = None, basis_cfg_fp: str = None, device_id: str
   dataset_selector = {'cifar': data.dataset.Cifar}
   acceptable_iter_optim_algs = {'adam': torch.optim.Adam}
   session_init_datetime = datetime.now().astimezone(timezone.utc)
+  stdout_refresh_rate = 0.3 # In seconds
 
   if device_id == 'gpu':
     device = torch.device(device='cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -142,7 +143,7 @@ def train(*, basis_chkp_id: str = None, basis_cfg_fp: str = None, device_id: str
 
     # stdout: Iteration state
     compounding_delta_t_stdout += delta_t_iteration
-    if dataset.val_set.minibatch_idx == 0 or dataset.val_set.minibatch_idx == dataset.val_set.n_steps - 1 or compounding_delta_t_stdout > 0.1:
+    if dataset.val_set.minibatch_idx == 0 or dataset.val_set.minibatch_idx == dataset.val_set.n_steps - 1 or compounding_delta_t_stdout > stdout_refresh_rate:
       compounding_delta_t_stdout = 0
       progress_bar_ist = utils.logger.get_progress_bar_ist(i=dataset.val_set.minibatch_idx, n=dataset.val_set.n_steps-1, delta_t=delta_t_iteration, loss=None, bar_length = 30, bar_background_char = ' ', bar_fill_char = '=')
       utils.logger.dnmc_stdout_write(s=progress_bar_ist)
@@ -211,7 +212,7 @@ def train(*, basis_chkp_id: str = None, basis_cfg_fp: str = None, device_id: str
 
       # stdout: Iteration state
       compounding_delta_t_stdout += delta_t_iteration
-      if dataset.train_set.minibatch_idx == 0 or dataset.train_set.minibatch_idx == dataset.train_set.n_steps - 1 or compounding_delta_t_stdout > 0.1:
+      if dataset.train_set.minibatch_idx == 0 or dataset.train_set.minibatch_idx == dataset.train_set.n_steps - 1 or compounding_delta_t_stdout > stdout_refresh_rate:
         compounding_delta_t_stdout = 0
         progress_bar_ist = utils.logger.get_progress_bar_ist(i=dataset.train_set.minibatch_idx, n=dataset.train_set.n_steps-1, delta_t=delta_t_iteration, loss=metrics_measurement_lists['est_train']['loss'][-1], bar_length = 30, bar_background_char = ' ', bar_fill_char = '=')
         utils.logger.dnmc_stdout_write(s=progress_bar_ist)
@@ -240,7 +241,7 @@ def train(*, basis_chkp_id: str = None, basis_cfg_fp: str = None, device_id: str
 
       # stdout: Iteration state
       compounding_delta_t_stdout += delta_t_iteration
-      if dataset.train_set.minibatch_idx == 0 or dataset.train_set.minibatch_idx == dataset.train_set.n_steps - 1 or compounding_delta_t_stdout > 0.1:
+      if dataset.train_set.minibatch_idx == 0 or dataset.train_set.minibatch_idx == dataset.train_set.n_steps - 1 or compounding_delta_t_stdout > stdout_refresh_rate:
         compounding_delta_t_stdout = 0
         progress_bar_ist = utils.logger.get_progress_bar_ist(i=dataset.train_set.minibatch_idx, n=dataset.train_set.n_steps-1, delta_t=delta_t_iteration, loss=metrics_measurement_lists['train']['loss'][-1], bar_length = 30, bar_background_char = ' ', bar_fill_char = '=')
         utils.logger.dnmc_stdout_write(s=progress_bar_ist)
@@ -267,7 +268,7 @@ def train(*, basis_chkp_id: str = None, basis_cfg_fp: str = None, device_id: str
 
       # stdout: Iteration state
       compounding_delta_t_stdout += delta_t_iteration
-      if dataset.val_set.minibatch_idx == 0 or dataset.val_set.minibatch_idx == dataset.val_set.n_steps - 1 or compounding_delta_t_stdout > 0.1:
+      if dataset.val_set.minibatch_idx == 0 or dataset.val_set.minibatch_idx == dataset.val_set.n_steps - 1 or compounding_delta_t_stdout > stdout_refresh_rate:
         compounding_delta_t_stdout = 0
         progress_bar_ist = utils.logger.get_progress_bar_ist(i=dataset.val_set.minibatch_idx, n=dataset.val_set.n_steps-1, delta_t=delta_t_iteration, loss=metrics_measurement_lists['val']['loss'][-1], bar_length = 30, bar_background_char = ' ', bar_fill_char = '=')
         utils.logger.dnmc_stdout_write(s=progress_bar_ist)
@@ -402,7 +403,7 @@ def train(*, basis_chkp_id: str = None, basis_cfg_fp: str = None, device_id: str
 
     # stdout: Iteration state
     compounding_delta_t_stdout += delta_t_iteration
-    if dataset.test_set.minibatch_idx == 0 or dataset.test_set.minibatch_idx == dataset.test_set.n_steps - 1 or compounding_delta_t_stdout > 0.1:
+    if dataset.test_set.minibatch_idx == 0 or dataset.test_set.minibatch_idx == dataset.test_set.n_steps - 1 or compounding_delta_t_stdout > stdout_refresh_rate:
       compounding_delta_t_stdout = 0
       progress_bar_ist = utils.logger.get_progress_bar_ist(i=dataset.test_set.minibatch_idx, n=dataset.test_set.n_steps-1, delta_t=delta_t_iteration, loss=test_loss_minibatch.item(), bar_length = 30, bar_background_char = ' ', bar_fill_char = '=')
       utils.logger.dnmc_stdout_write(s=progress_bar_ist)

@@ -29,7 +29,7 @@ def get_delta_t_h(t: float) -> str:
   elif 1 <= t and t < 60: # [1 s, 1 m)
     t_h = f'{s:02d}s'
   elif 0 <= t and t < 1: # [0 s, 1 s)
-    t_h = f'{fr:03d}f' # f -> first 3 digits of milisecond; non standard unit notation
+    t_h = f'{fr:03d}ms'
 
   return t_h
 
