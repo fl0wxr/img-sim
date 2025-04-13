@@ -1,0 +1,24 @@
+{
+  "model_architecture_cfg":
+  {
+    "type": "ResNet",
+    "instance_prsd_shape": [3, 32, 32],
+    "N_repr": 128,
+    "detailed": null
+  },
+  "training_cfg":
+  {
+    "rng_seed": 0,
+    "max_epochs": 100,
+    "data": "cifar",
+    "M_minibatch": 16,
+    "train_fraction": 0.6,
+    "subset_size": null,
+    "temperature": 0.5,
+    "optimization":
+    {
+      "type": "adam",
+      "lr": 1e-3
+    }
+  }
+}

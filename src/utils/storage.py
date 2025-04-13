@@ -29,7 +29,7 @@ class JsonFile(File_):
 
   def write(self):
     if not('disableExports' in os.environ['DEBUG_CONFIG'].split(';')):
-      with open(self.abs_fp, 'w') as f:
+      with open(file=self.abs_fp, mode='w') as f:
         json.dump(self.content, f, indent=2)
 
 class TpFile(File_):
