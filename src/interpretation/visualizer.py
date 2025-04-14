@@ -1,6 +1,5 @@
-import os
 from matplotlib import pyplot as plt
-from matplotlib.ticker import MaxNLocator
+from matplotlib.ticker import MaxNLocator, ScalarFormatter
 from PIL import Image
 from io import BytesIO
 import numpy as np
@@ -95,20 +94,36 @@ class Plot2D:
     if clear:
       self.ax.clear()
 
-    self.ax.set_xlabel('epoch')
-    self.ax.set_ylabel(self.metric_id)
-    self.ax.grid(True)
 
-    # Display integer valued x-axis ticks only
+    # if len(self.y['val']) > 2:
+    #   top = [self.y['val'][epoch][0] for epoch in ({0, 1} & set(self.x))]
+      # bottom1 = [self.y['train'][epoch][3] for epoch in self.x]
+      # bottom2 = [self.y['val'][epoch][0] for epoch in self.x]
+    #   self.ax.set_ylim(bottom=0.9*min(*bottom1[1:], *bottom2[1:]), top=1.1*max(top[1:]))
+    if len(self.y['val']) > 1:
+      top_list = [self.y['val'][epoch][0] for epoch in ({0, 1} & set(self.x))]
+      bottom_list1 = [self.y['train'][epoch][3] for epoch in self.x]
+      bottom_list2 = [self.y['val'][epoch][0] for epoch in self.x]
+      top = 1.1*max(top_list[1:])
+      bottom = 0.9*min(*bottom_list1[1:], *bottom_list2[1:])
+      self.ax.set_yscale('log')
+      self.ax.set_ylim(bottom=bottom, top=top)
+
+      formatter = ScalarFormatter(useMathText=True)
+      formatter.set_powerlimits((-2, 2))
+      self.ax.yaxis.set_minor_formatter(formatter)
+      self.ax.yaxis.set_minor_formatter(plt.FuncFormatter(lambda val, _: f'{val}'))
+
+    self.ax.grid(which='major')
+    self.ax.grid(which='minor', axis='y', linestyle='--', color='gray', alpha=0.5)
+
+    self.ax.set_xlabel('epoch')
     self.ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+
+    self.ax.set_ylabel(self.metric_id)
 
     self.ax.plot(self.x, [self.y['train'][epoch][3] for epoch in self.x], label='train', color=self.plot_train_color)
     self.ax.plot(self.x, [self.y['val'][epoch][0] for epoch in self.x], label='val', color=self.plot_val_color)
-    self.ax.fill_between(self.x, [self.y['train'][epoch][0] for epoch in self.x], [self.y['train'][epoch][1] for epoch in range(len(self.x))], color=self.fill_color, alpha=0.4, label='train dvt')
-
-    if len(self.y['val'][0:2]) != 0:
-      top = [self.y['val'][epoch][0] for epoch in ({0, 1} & set(self.x))]
-      self.ax.set_ylim(bottom=0, top=min(top))
 
     self.ax.legend()
 
@@ -122,7 +137,7 @@ class Plot2D:
     '''
 
     buf = BytesIO()
-    self.fig.savefig(fname=buf, format='png', bbox_inches='tight', dpi=300)
+    self.fig.savefig(fname=buf, format='png', bbox_inches='tight', dpi=250)
     buf.seek(0)
     plt_img = Image.open(buf)
 

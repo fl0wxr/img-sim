@@ -103,7 +103,7 @@ def train(*, basis_chkp_id: str = None, basis_cfg_fp: str = None, device_id: str
         worst_measurements[measurement_mode][metric_id] = None
 
   plt2d = dict()
-  inv_metrics_measurements = session_checkpoint_manager.get_inverted_dataset_metric()
+  inv_metrics_measurements = utils.storage.get_inverted_dataset_metric(metrics_measurements=session_checkpoint_manager.training_history.content['metrics_measurements'])
   for metric_id in metrics_ids:
     plt2d[metric_id] = interpretation.visualizer.Plot2D(metric_id=metric_id, y=inv_metrics_measurements[metric_id])
     session_checkpoint_manager.loss_history_plot[metric_id].content = plt2d[metric_id].plt2image()
@@ -351,7 +351,7 @@ def train(*, basis_chkp_id: str = None, basis_cfg_fp: str = None, device_id: str
     session_checkpoint_manager.tparams.content = trainable_model.state_dict()
 
     # Update and store plot
-    inv_metrics_measurements = session_checkpoint_manager.get_inverted_dataset_metric()
+    inv_metrics_measurements = utils.storage.get_inverted_dataset_metric(metrics_measurements=session_checkpoint_manager.training_history.content['metrics_measurements'])
     for metric_id in metrics_ids:
       plt2d[metric_id].update_measurements(y_new=inv_metrics_measurements[metric_id], clear=True)
       session_checkpoint_manager.loss_history_plot[metric_id].content = plt2d[metric_id].plt2image()

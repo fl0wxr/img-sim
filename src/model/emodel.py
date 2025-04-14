@@ -17,12 +17,14 @@ def estimator_model_assembler(model_architecture_cfg: dict, device: torch.device
     `estimator_model`. The estimator torch model.
   '''
 
-  feasible_model_types = {'SimpleCNN'}
+  feasible_model_types = {'SimpleCNN', 'ResNet'}
 
   assert model_architecture_cfg['type'] in feasible_model_types, 'E: Invalid model type.'
 
   if model_architecture_cfg['type'] == 'SimpleCNN':
-    basis = model.backbone.SimpleCNN(N_repr=model_architecture_cfg['N_repr'], device=device)
+    base = model.backbone.SimpleCNN(N_repr=model_architecture_cfg['N_repr'], device=device)
+  elif model_architecture_cfg['type'] == 'ResNet':
+    base = model.backbone.ResNet(N_repr=model_architecture_cfg['N_repr'], device=device)
 
   state_dict_base = dict()
   for tparams_key in state_dict.keys():
@@ -31,6 +33,6 @@ def estimator_model_assembler(model_architecture_cfg: dict, device: torch.device
     if block_id == 'base':
       state_dict_base[layer_id] = state_dict[tparams_key]
 
-  basis.load_state_dict(state_dict=state_dict_base)
+  base.load_state_dict(state_dict=state_dict_base)
 
-  return basis
+  return base

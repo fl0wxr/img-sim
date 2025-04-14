@@ -9,7 +9,7 @@
   "training_cfg":
   {
     "rng_seed": 0,
-    "max_epochs": 3,
+    "max_epochs": 100,
     "data": "cifar",
     "M_minibatch": 16,
     "train_fraction": 0.6,

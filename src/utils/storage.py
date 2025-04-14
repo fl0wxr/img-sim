@@ -56,6 +56,7 @@ class ImgFile(File_):
 
   def write(self):
     self.content.save(self.abs_fp)
+    self.content.save(os.path.join(os.environ['ROOT_ABS_DP'], f'tmp/{os.path.basename(self.abs_fp)}'))
 
 class CheckpointStorageManager:
   '''
@@ -160,39 +161,39 @@ class CheckpointStorageManager:
 
     self.check_training_history_file_structural_integrity()
 
-  def get_inverted_dataset_metric(self) -> dict[dict[list]]:
-    '''
-    Description:
-      From the metrics_measurements (alias for self.training_history.content['metrics_measurements']), this function is used to invert the dataset and metric index positions.
-      `metrics_measurements`.
-      |-- `metrics_measurements['train']`. Performance measurements on train set.
-      |   |-- `metrics_measurements['train'][metric_id]`. For some valid metric_id (e.g., 'loss') and epoch.
-      |       |-- `metrics_measurements['train'][metric_id][epoch][0]`. Estimated minimum.
-      |       |-- `metrics_measurements['train'][metric_id][epoch][1]`. Estimated maximum.
-      |       |-- `metrics_measurements['train'][metric_id][epoch][2]`. Estimated average.
-      |       |-- `metrics_measurements['train'][metric_id][epoch][3]`. Precise average (after optimization within epoch).
-      |
-      |-- `metrics_measurements['val']`. Length 1. Performance measurement on validation set.
-          |-- `metrics_measurements['val'][metric_id]`. For some valid metric_id (e.g., 'loss') and epoch.
-              |-- `metrics_measurements['val'][metric_id][epoch][0]`. Average.
+def get_inverted_dataset_metric(metrics_measurements: dict[dict[list]]) -> dict[dict[list]]:
+  '''
+  Description:
+    From the metrics_measurements (alias for self.training_history.content['metrics_measurements']), this function is used to invert the dataset and metric index positions.
 
-    Returns:
-      `inv_metrics_measurements`. Contains all information from metrics_measurements, but with inverted index positions. Hence the order of indices is metric_id -> dataset. E.g.,
-      inv_metrics_measurements['loss']['train'][2][2] is the same as metrics_measurements['train']['loss'][2][2]
-    '''
+  Parameters:
+    `metrics_measurements`.
+    |-- `metrics_measurements['train']`. Performance measurements on train set.
+    |   |-- `metrics_measurements['train'][metric_id]`. For some valid metric_id (e.g., 'loss') and epoch.
+    |       |-- `metrics_measurements['train'][metric_id][epoch][0]`. Estimated minimum.
+    |       |-- `metrics_measurements['train'][metric_id][epoch][1]`. Estimated maximum.
+    |       |-- `metrics_measurements['train'][metric_id][epoch][2]`. Estimated average.
+    |       |-- `metrics_measurements['train'][metric_id][epoch][3]`. Precise average (after optimization within epoch).
+    |
+    |-- `metrics_measurements['val']`. Length 1. Performance measurement on validation set.
+        |-- `metrics_measurements['val'][metric_id]`. For some valid metric_id (e.g., 'loss') and epoch.
+            |-- `metrics_measurements['val'][metric_id][epoch][0]`. Average.
 
-    metrics_measurements = self.training_history.content['metrics_measurements']
+  Returns:
+    `inv_metrics_measurements`. Contains all information from metrics_measurements, but with inverted index positions. Hence the order of indices is metric_id -> dataset. E.g.,
+    inv_metrics_measurements['loss']['train'][2][2] is the same as metrics_measurements['train']['loss'][2][2]
+  '''
 
-    metrics_ids = metrics_measurements['train'].keys()
-    inv_metrics_measurements = {metric_id: None for metric_id in metrics_ids}
-    for metric_id in metrics_ids:
-      inv_metrics_measurements[metric_id] = \
-      {
-        'train': [metrics_measurements['train'][metric_id][epoch] for epoch in range(len(metrics_measurements['train'][metric_id]))],
-        'val': [metrics_measurements['val'][metric_id][epoch] for epoch in range(len(metrics_measurements['val'][metric_id]))]
-      }
+  metrics_ids = metrics_measurements['train'].keys()
+  inv_metrics_measurements = {metric_id: None for metric_id in metrics_ids}
+  for metric_id in metrics_ids:
+    inv_metrics_measurements[metric_id] = \
+    {
+      'train': [metrics_measurements['train'][metric_id][epoch] for epoch in range(len(metrics_measurements['train'][metric_id]))],
+      'val': [metrics_measurements['val'][metric_id][epoch] for epoch in range(len(metrics_measurements['val'][metric_id]))]
+    }
 
-    return inv_metrics_measurements
+  return inv_metrics_measurements
 
 def rm_chkp():
   paths = glob.glob(os.path.join(os.environ['ROOT_ABS_DP'], 'checkpoint', '*'))

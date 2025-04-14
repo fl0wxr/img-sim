@@ -10,6 +10,7 @@ import utils.logger
 import random
 import model.emodel
 from time import time
+from PIL import Image
 
 
 def estimate(cfg_fp: str, tparams_fp: str, device_id: str):
@@ -50,9 +51,11 @@ def estimate(cfg_fp: str, tparams_fp: str, device_id: str):
 
   estimator_model = model.emodel.estimator_model_assembler(model_architecture_cfg=config.content['model_architecture_cfg'], device=device, state_dict=tparams.content)
 
-  basis_idx = random.randint(0, len(dataset.test_set)-1)
+  basis_idx = 0
   test_set_ist = dataset.test_set.x
   basis_img = test_set_ist[basis_idx] # Shape (3, H, W)
+  basis_img_file = ImgFile(abs_fp='tmp/basis_img.png')
+  basis_img_file.content = Image.fromarray(np.transpose(a=(basis_img.cpu().numpy()*255).astype(np.uint8), axes=(1, 2, 0)))
 
   dataset.train_set.shuffle, dataset.val_set.shuffle, dataset.test_set.shuffle = 3*[False]
 
@@ -183,7 +186,7 @@ def estimate(cfg_fp: str, tparams_fp: str, device_id: str):
   plt_img_train_file.write()
   plt_img_val_file.write()
   plt_img_test_file.write()
-  # 
+  basis_img_file.write()
 
   # Export images
 
