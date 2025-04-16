@@ -76,10 +76,7 @@ class DataIter:
 class Cifar:
   '''
   Description:
-    Memory efficient Cifar [1] parser, providing high level and streamlined elementary data manipulation functions tailored for training.
-
-  Sources:
-  |-- [1] https://www.cs.toronto.edu/~kriz/cifar.html.
+    Memory efficient Cifar parser, providing high level and streamlined elementary data manipulation functions tailored for training.
   '''
 
   def __init__(self, instance_prsd_shape: tuple, M_minibatch: int, train_fraction: int, subset_size: int, parse_labels: bool = False, augm: bool = True, device: str = 'cpu'):
@@ -112,6 +109,9 @@ class Cifar:
     Description:
       Loads the Cifar-10 dataset.
 
+    Sources:
+      [1] https://www.cs.toronto.edu/~kriz/cifar.html.
+
     Parameters:
       `return_labels`. Triggers label array return.
       `subset_size`. The number of returned instances/examples. subset_size=None implies that all examples will be returned.
@@ -127,23 +127,23 @@ class Cifar:
         |-- `data_set_ist_out`. Shape (subset_size, 32, 32, 3). Dtype uint8. The order of the channel axis is defined by the BGR color system.
     '''
 
-    data_subset_fp_unfiltered = glob.glob(os.path.join(os.environ['ROOT_ABS_DP'], 'data/raw/cifar/dataset', '*'))
-    data_subset_fps = []
-    for potential_data_subset_fp in data_subset_fp_unfiltered:
-      if '.' not in os.path.basename(potential_data_subset_fp):
-        data_subset_fps.append(potential_data_subset_fp)
+    data_set_fp_unfiltered = glob.glob(os.path.join(os.environ['ROOT_ABS_DP'], 'data/raw/cifar/dataset', '*'))
+    data_set_fps = []
+    for potential_data_set_fp in data_set_fp_unfiltered:
+      if '.' not in os.path.basename(potential_data_set_fp):
+        data_set_fps.append(potential_data_set_fp)
 
     data_set_ist = []
     data_set_tgt = []
-    for data_subset_fp in data_subset_fps:
+    for data_set_fp in data_set_fps:
 
-      with open(file=data_subset_fp, mode='rb') as f:
-        data_subset = pickle.load(f, encoding='bytes')
+      with open(file=data_set_fp, mode='rb') as f:
+        data_set = pickle.load(f, encoding='bytes')
 
-      data_subset_ist = data_subset[b'data'] # dtype np.uint8
-      data_subset_tgt = data_subset[b'labels']
-      data_set_ist.append(data_subset_ist)
-      data_set_tgt.append(data_subset_tgt)
+      data_set_ist = data_set[b'data'] # dtype np.uint8
+      data_set_tgt = data_set[b'labels']
+      data_set_ist.append(data_set_ist)
+      data_set_tgt.append(data_set_tgt)
 
     data_set_ist = np.concatenate(data_set_ist, axis=0)
     data_set_tgt = np.concatenate(data_set_tgt, axis=0)
