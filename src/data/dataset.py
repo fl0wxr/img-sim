@@ -76,7 +76,10 @@ class DataIter:
 class Cifar:
   '''
   Description:
-    Memory efficient Cifar parser, providing high level and streamlined elementary data manipulation functions tailored for training.
+    Memory efficient Cifar [1] parser, providing high level and streamlined elementary data manipulation functions tailored for training.
+
+  Sources:
+    [1] https://www.cs.toronto.edu/~kriz/cifar.html.
   '''
 
   def __init__(self, instance_prsd_shape: tuple, M_minibatch: int, train_fraction: int, subset_size: int, parse_labels: bool = False, augm: bool = True, device: str = 'cpu'):
@@ -108,9 +111,6 @@ class Cifar:
     '''
     Description:
       Loads the Cifar-10 dataset.
-
-    Sources:
-      [1] https://www.cs.toronto.edu/~kriz/cifar.html.
 
     Parameters:
       `return_labels`. Triggers label array return.
