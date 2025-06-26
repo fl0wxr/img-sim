@@ -53,7 +53,7 @@ class DataIter:
       Where G[self.minibatch_idx] is the size of the minibatch with index self.minibatch_idx. The target size is self.M_minibatch, but the last minibatch may not always correspond to that size.
 
     Returns:
-      `not_reset`. When False, it signals that minibatch groups have not exhausted yet. Otherwise it signals that the groups have been exausted (can be further utilized by the training loop).
+      `not_reset`. When True, it signals that minibatch groups have not been exhausted yet. Otherwise it signals that the groups have been exausted (can be further utilized by the training loop).
     '''
 
     self.minibatch_idx += 1
@@ -140,10 +140,8 @@ class Cifar:
       with open(file=data_set_fp, mode='rb') as f:
         data_set = pickle.load(f, encoding='bytes')
 
-      data_set_ist = data_set[b'data'] # dtype np.uint8
-      data_set_tgt = data_set[b'labels']
-      data_set_ist.append(data_set_ist)
-      data_set_tgt.append(data_set_tgt)
+      data_set_ist.append(data_set[b'data'])
+      data_set_tgt.append(data_set[b'labels'])
 
     data_set_ist = np.concatenate(data_set_ist, axis=0)
     data_set_tgt = np.concatenate(data_set_tgt, axis=0)
@@ -195,12 +193,12 @@ class Cifar:
 
       Else
         `(train_set_ist, test_set_ist, train_set_tgt, test_set_tgt)`.
-        |-- `train_set_ist`. Shape (M, C, H, W). Dtype float32.
-        |-- `val_set_ist`. Shape (M, C, H, W). Dtype float32.
-        |-- `test_set_ist`. Shape (M, C, H, W). Dtype float32.
-        |-- `train_set_tgt`. Shape (M,).
-        |-- `val_set_tgt`. Shape (M,).
-        |-- `test_set_tgt`. Shape (M,).
+        |-- `train_set_ist`. Shape (M_train, C, H, W). Dtype float32.
+        |-- `val_set_ist`. Shape (M_val, C, H, W). Dtype float32.
+        |-- `test_set_ist`. Shape (M_test, C, H, W). Dtype float32.
+        |-- `train_set_tgt`. Shape (M_train,).
+        |-- `val_set_tgt`. Shape (M_val,).
+        |-- `test_set_tgt`. Shape (M_test,).
     '''
 
     data_set_ist_prsd = data.utils.preprocess_images(data_set_ist=data_set_ist, ist_shape=ist_shape)
