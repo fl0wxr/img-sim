@@ -2,7 +2,74 @@
 
 ## Objective
 
-To replicate and extend a deep learning model using a contrastive learning framework for the task of image similarity. The underlying model learns meaningful visual representations through self-supervised learning techniques, enabling accurate similarity measurements between image pairs.
+To replicate and extend a deep learning model using a contrastive learning framework for the task of image similarity. The underlying model learns meaningful visual representations through self-supervised learning techniques, enabling accurate similarity measurements between image pairs. This implementation is based on PyTorch.
+
+## Project 1: ResNet-based Contrastive Learning on CIFAR-10
+
+### Training & SimCLR Implementation
+Fully implemented SimCLR framework from scratch (vectorized), including the NT-Xent loss:
+
+  $$
+  \ell_k = - \log \frac{\exp(\text{sim}(z_k, z_{p(k)}) / \tau)}{\sum_{j \ne k} \exp(\text{sim}(z_k, z_j) / \tau)} .
+  $$
+
+### Experiments
+
+- Compared two CNN backbones:
+  - **Simple:** 2 convolutional layers + 1 fully connected layer (LeNet-style), conv layers use kernel size 3, stride 2, padding 1.
+  - **ResNet:** Residual blocks with skip connections, batch normalization, and ReLU activations.
+- Output vector space: $(\mathbb{R}^{128},+,\cdot)$.
+
+<div style="text-align: center;">
+  <table align="center">
+    <thead>
+      <tr>
+        <th>Model</th>
+        <th>Train Loss</th>
+        <th>Test Loss</th>
+        <th>Duration</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Simple</td>
+        <td>0.0350</td>
+        <td>0.0352</td>
+        <td>2h 50m</td>
+      </tr>
+      <tr>
+        <td>ResNet</td>
+        <td>0.0166</td>
+        <td>0.0184</td>
+        <td>4h 18m</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<br>
+
+<center>
+  <img src="./asset/basis_img.png" alt="Basis Image" width="360" height="auto" style="image-rendering: pixelated">
+</center>
+
+Figure 1. The base image sampled from the test set used as a reference for similarity comparison.
+
+<br>
+
+<center>
+  <img src="./asset/plt_img_test.png" alt="Basis Image" width="720" height="auto" style="image-rendering: pixelated">
+</center>
+
+Figure 2. Visualization showing the ranking of all test images in the test set based on similarity to the basis image by Ranking of top-5 and bottom-5 similar images compared to a basis image.
+
+<br>
+
+#### Hardware and Environment Specs
+
+- **GPU:** NVIDIA RTX 4060 Mobile
+- **CPU:** Intel i5-12500H
+- **RAM:** 40 GB DDR4
 
 ## Deployment
 
@@ -182,4 +249,4 @@ The current methodologies were highly relied on the work of [1].
 
 ## References
 
-[1]. SimCLR: A Simple Framework for Contrastive Learning of Visual Representations, Chen et al. (2020), *Proceedings of the 37th International Conference on Machine Learning, Vienna, Austria, PMLR 119*, [URL](https://arxiv.org/abs/2002.05709).
+[1]. SimCLR: A Simple Framework for Contrastive Learning of Visual Representations, Chen et al. (2020), *Proceedings of the 37th International Conference on Machine Learning, Vienna, Austria, PMLR 119*, [[URL](https://arxiv.org/abs/2002.05709)].
