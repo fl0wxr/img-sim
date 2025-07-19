@@ -20,7 +20,7 @@ Fully implemented SimCLR framework from scratch (vectorized), including the NT-X
   - **ResNet:** Residual blocks with skip connections, batch normalization, and ReLU activations.
 - Output vector space: $(\mathbb{R}^{128},+,\cdot)$.
 
-<div style="text-align: center;">
+<p align="center">
   <table align="center">
     <thead>
       <tr>
@@ -45,21 +45,21 @@ Fully implemented SimCLR framework from scratch (vectorized), including the NT-X
       </tr>
     </tbody>
   </table>
-</div>
+</p>
 
 <br>
 
-<center>
+<p align="center">
   <img src="./asset/basis_img.png" alt="Basis Image" width="360" height="auto" style="image-rendering: pixelated">
-</center>
+</p>
 
 Figure 1. The base image sampled from the test set used as a reference for similarity comparison.
 
 <br>
 
-<center>
+<p align="center">
   <img src="./asset/plt_img_test.png" alt="Basis Image" width="720" height="auto" style="image-rendering: pixelated">
-</center>
+</p>
 
 Figure 2. Visualization showing the ranking of all test images in the test set based on similarity to the basis image by Ranking of top-5 and bottom-5 similar images compared to a basis image.
 
