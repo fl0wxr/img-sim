@@ -44,7 +44,7 @@ def train(*, basis_chkp_id: str = None, basis_cfg_fp: str = None, device_id: str
   else:
     device = torch.device(device='cpu')
 
-  current_session_chkp_id = session_init_datetime.strftime('D%Y%m%d%H%M%SUTC0')
+  current_session_chkp_id = session_init_datetime.strftime('Dt%Y%m%d%H%M%SUTC0')
 
   # Parse checkpoint information or some-config.json and then initialize the current session's checkpoint
   session_checkpoint_manager = utils.storage.CheckpointStorageManager(chkp_id=current_session_chkp_id, basis_path=basis_path, session_datetime=session_init_datetime)
@@ -179,7 +179,7 @@ def train(*, basis_chkp_id: str = None, basis_cfg_fp: str = None, device_id: str
         metrics_measurement_lists[measurement_mode][metric_id] = []
 
     t_0_epoch = time()
-    t_0_epoch_datetime_str = datetime.now().astimezone(timezone.utc).strftime('D%Y%m%d%H%M%SUTC0')
+    t_0_epoch_datetime_str = datetime.now().astimezone(timezone.utc).strftime('Dt%Y%m%d%H%M%SUTC0')
     t_1 = time()
     compounding_delta_t_stdout = 0
 
@@ -362,7 +362,7 @@ def train(*, basis_chkp_id: str = None, basis_cfg_fp: str = None, device_id: str
     delta_t_epoch = time() - t_0_epoch
     delta_t_epoch_h = utils.logger.get_delta_t_h(t=delta_t_epoch)
     session_checkpoint_manager.training_history.content['total_time'] += delta_t_epoch
-    session_checkpoint_manager.training_history.content['datetime_ended'] = datetime.now().astimezone(timezone.utc).strftime('D%Y%m%d%H%M%SUTC0')
+    session_checkpoint_manager.training_history.content['datetime_ended'] = datetime.now().astimezone(timezone.utc).strftime('Dt%Y%m%d%H%M%SUTC0')
 
     # Epoch persistent storage
     session_checkpoint_manager.training_history.write()
