@@ -48,7 +48,7 @@ $$
 <br>
 
 <p align="center">
-  <img src="./asset/basis_img.png" width="360" height="auto" style="image-rendering: pixelated">
+  <img src="./asset/basis_img.png" width="280" height="auto" style="image-rendering: pixelated">
 </p>
 
 Figure 1. The base image sampled from the test set used as a reference for similarity comparison.
@@ -56,7 +56,7 @@ Figure 1. The base image sampled from the test set used as a reference for simil
 <br>
 
 <p align="center">
-  <img src="./asset/plt_img_test.png" width="720" height="auto" style="image-rendering: pixelated">
+  <img src="./asset/plt_img_test.png" width="500" height="auto" style="image-rendering: pixelated">
 </p>
 
 Figure 2. Visualization showing the ranking of all test images in the test set based on similarity to the basis image by Ranking of top-5 and bottom-5 similar images compared to a basis image.
