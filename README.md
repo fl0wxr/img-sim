@@ -51,7 +51,7 @@ $$
   <img src="./asset/loss.png" width="1200" height="auto">
 </p>
 
-Figure 1. Loss plots on the train and validation sets during training.
+Figure 1. Loss plots of the ResNet model on the train and validation sets during training.
 
 <br>
 
