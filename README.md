@@ -48,18 +48,26 @@ $$
 <br>
 
 <p align="center">
-  <img src="./asset/basis_img.png" width="280" height="auto" style="image-rendering: pixelated">
+  <img src="./asset/loss.png" width="1200" height="auto">
 </p>
 
-Figure 1. The base image sampled from the test set used as a reference for similarity comparison.
+Figure 1. Loss plots on the train and validation sets during training.
 
 <br>
 
 <p align="center">
-  <img src="./asset/plt_img_test.png" width="500" height="auto" style="image-rendering: pixelated">
+  <img src="./asset/basis_img.png" width="280" height="auto">
 </p>
 
-Figure 2. Visualization showing the ranking of all test images in the test set based on similarity to the basis image by Ranking of top-5 and bottom-5 similar images compared to a basis image.
+Figure 2. The base image sampled from the test set used as a reference for similarity comparison.
+
+<br>
+
+<p align="center">
+  <img src="./asset/plt_img_test.png" width="500" height="auto">
+</p>
+
+Figure 3. Visualization showing the ranking of all test images in the test set based on similarity to the basis image by Ranking of top-5 and bottom-5 similar images compared to a basis image.
 
 <br>
 
