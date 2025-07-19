@@ -4,14 +4,12 @@
 
 To replicate and extend a deep learning model using a contrastive learning framework for the task of image similarity. The underlying model learns meaningful visual representations through self-supervised learning techniques, enabling accurate similarity measurements between image pairs. This implementation is based on PyTorch.
 
-## Project 1: ResNet-based Contrastive Learning on CIFAR-10
-
 ### Training & SimCLR Implementation
 Fully implemented SimCLR framework from scratch (vectorized), including the NT-Xent loss:
 
-  $$
+$$
   \ell_k = - \log \frac{\exp(\text{sim}(z_k, z_{p(k)}) / \tau)}{\sum_{j \ne k} \exp(\text{sim}(z_k, z_j) / \tau)} .
-  $$
+$$
 
 ### Experiments
 
@@ -50,7 +48,7 @@ Fully implemented SimCLR framework from scratch (vectorized), including the NT-X
 <br>
 
 <p align="center">
-  <img src="./asset/basis_img.png" alt="Basis Image" width="360" height="auto" style="image-rendering: pixelated">
+  <img src="./asset/basis_img.png" width="360" height="auto" style="image-rendering: pixelated">
 </p>
 
 Figure 1. The base image sampled from the test set used as a reference for similarity comparison.
@@ -58,7 +56,7 @@ Figure 1. The base image sampled from the test set used as a reference for simil
 <br>
 
 <p align="center">
-  <img src="./asset/plt_img_test.png" alt="Basis Image" width="720" height="auto" style="image-rendering: pixelated">
+  <img src="./asset/plt_img_test.png" width="720" height="auto" style="image-rendering: pixelated">
 </p>
 
 Figure 2. Visualization showing the ranking of all test images in the test set based on similarity to the basis image by Ranking of top-5 and bottom-5 similar images compared to a basis image.
