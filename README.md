@@ -13,10 +13,13 @@ $$
 
 ### Experiments
 
-- Compared two CNN backbones:
-  - **Simple:** 2 convolutional layers + 1 fully connected layer (LeNet-style), conv layers use kernel size 3, stride 2, padding 1.
-  - **ResNet:** Residual blocks with skip connections, batch normalization, and ReLU activations.
-- Output vector space: $(\mathbb{R}^{128},+,\cdot)$.
+Comparison of two CNN backbones:
+- **Simple:** 2 convolutional layers + 1 fully connected layer (LeNet-style), conv layers use kernel size 3, stride 2, padding 1.
+- **ResNet:** Residual blocks with skip connections, batch normalization, and ReLU activations.
+
+The output vector space is $(\mathbb{R}^{128},+,\cdot)$.
+
+<br>
 
 <p align="center">
   <table align="center">
