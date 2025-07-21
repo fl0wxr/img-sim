@@ -1,4 +1,4 @@
-# SimSpan: Contrastive Learning for Image Similarity
+# img-sim: Contrastive Learning for Image Similarity
 
 ## Objective
 
@@ -53,21 +53,23 @@ The output vector space is $(\mathbb{R}^{128},+,\cdot)$.
 <p align="center">
   <img src="./asset/loss.png" width="1200" height="auto">
 </p>
-
-Figure 1. Loss plots of the ResNet model on the train and validation sets during training.
-
-<br>
-
 <p align="center">
-  <img src="./asset/basis_img.png" width="280" height="auto">
+  Figure 1. Loss plots of the ResNet model on the train and validation sets during training.
 </p>
 
-Figure 2. The base image sampled from the test set used as a reference for similarity comparison.
+<br>
+
+<p align="center">
+  <img src="./asset/basis-img.png" width="280" height="auto">
+</p>
+<p align="center">
+  Figure 2. The base image sampled from the test set used as a reference for similarity comparison.
+</p>
 
 <br>
 
 <p align="center">
-  <img src="./asset/plt_img_test.png" width="500" height="auto">
+  <img src="./asset/plt-img-test.png" width="500" height="auto">
 </p>
 
 Figure 3. Visualization showing the ranking of all test images in the test set based on similarity to the basis image by Ranking of top-5 and bottom-5 similar images compared to a basis image.
@@ -247,10 +249,6 @@ You can pass debug parameters for development purposes:
 ```bash
 python run.py --device cpu --mode train --config config-test.json --debug limit2SmallSubsetofData clearExports
 ```
-
-### Configuration Files
-
-Default configuration files are located in the `template/` directory. These define model architecture, optimizer settings, and training hyperparameters. You can modify or create your own config files based on these templates.
 
 ## Acknowledgement
 
