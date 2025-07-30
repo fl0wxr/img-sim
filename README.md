@@ -256,4 +256,4 @@ The current methodologies were highly relied on the work of [1].
 
 ## References
 
-[1]. SimCLR: A Simple Framework for Contrastive Learning of Visual Representations, Chen et al. (2020), *Proceedings of the 37th International Conference on Machine Learning, Vienna, Austria, PMLR 119*, [[URL](https://arxiv.org/abs/2002.05709)].
+[1] T. Chen, S. Kornblith, M. Norouzi and G. Hinton. "SimCLR: A Simple Framework for Contrastive Learning of Visual Representations". Proceedings of the 37th International Conference on Machine Learning, Vienna, Austria, PMLR 119. 2020. Available at: https://arxiv.org/abs/2002.05709.
